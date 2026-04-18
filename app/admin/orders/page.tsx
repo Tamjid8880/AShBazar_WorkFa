@@ -1,221 +1,123 @@
-// File: app/admin/orders/page.tsx
-import { Suspense } from 'react';
-import { Search, Filter, Download } from 'lucide-react';
-import { getOrders } from '@/server/queries/orders';
-import { OrdersDataTable } from '@/components/orders-data-table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+"use client";
 
-export const dynamic = 'force-dynamic';
-import { formatPrice } from '@/lib/utils';
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
-interface AdminOrdersPageProps {
-  searchParams: {
-    search?: string;
-    status?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    page?: string;
-  };
-}
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "accepted", label: "Accepted" },
+  { value: "packed", label: "Packed" },
+  { value: "on_the_way", label: "On the way" },
+  { value: "processing", label: "Processing" },
+  { value: "shipped", label: "Shipped" },
+  { value: "delivered", label: "Delivered" },
+  { value: "cancelled", label: "Cancelled" }
+];
 
-async function OrdersList({
-  searchParams,
-}: {
-  searchParams: AdminOrdersPageProps['searchParams'];
-}) {
-  const page = parseInt(searchParams.page || '1');
-  const search = searchParams.search || '';
-  const status = searchParams.status || '';
-  const dateFrom = searchParams.dateFrom
-    ? new Date(searchParams.dateFrom)
-    : undefined;
-  const dateTo = searchParams.dateTo
-    ? new Date(searchParams.dateTo)
-    : undefined;
+type Order = {
+  id: string;
+  orderStatus: string;
+  total: number | null;
+  totalPrice: number;
+  subtotal: number | null;
+  discount: number | null;
+  deliveryCharge: number | null;
+  phone: string | null;
+  street: string | null;
+  city: string | null;
+  paymentMethod: string;
+  orderDate: string;
+  user: { name: string; email: string | null };
+  items: { productName: string; quantity: number; price: number; variant: string | null }[];
+};
 
-  const result = await getOrders({
-    page,
-    limit: 20,
-    search,
-    status,
-    dateFrom,
-    dateTo,
-  });
+export default function AdminOrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  async function load() {
+    const res = await fetch("/api/orders");
+    const data = await res.json();
+    setOrders(data.data ?? []);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function updateStatus(id: string, orderStatus: string) {
+    await fetch(`/api/orders/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderStatus })
+    });
+    load();
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Showing {(page - 1) * 20 + 1}-
-          {Math.min(page * 20, result.pagination.total)} of{' '}
-          {result.pagination.total} orders
-        </p>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline">{result.pagination.total} total</Badge>
-          <Badge className="bg-yellow-100 text-yellow-800">
-            {result.orders.filter(o => o.status === 'PENDING').length} pending
-          </Badge>
-          <Badge className="bg-blue-100 text-blue-800">
-            {result.orders.filter(o => o.status === 'PROCESSING').length}{' '}
-            processing
-          </Badge>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-black text-slate-900">Order Management</h1>
+        <p className="text-slate-500 font-medium">Manage fulfillment and generate customer invoices.</p>
       </div>
 
-      <OrdersDataTable
-        data={result.orders.map((order: any) => ({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          customer: order.user?.name || order.email || 'Unknown',
-          total: Number(order.total),
-          status: order.status.toLowerCase().replace('_', ' ') as any,
-          date: new Date(order.createdAt).toLocaleDateString(),
-        }))}
-        isLoading={false}
-      />
-    </div>
-  );
-}
-
-export default function AdminOrdersPage({
-  searchParams,
-}: AdminOrdersPageProps) {
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
-          <p className="text-muted-foreground">
-            Manage customer orders and fulfillment
-          </p>
-        </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center space-x-4">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search orders..."
-            defaultValue={searchParams.search}
-            className="pl-9"
-          />
-        </div>
-
-        <Select defaultValue={searchParams.status}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="PROCESSING">Processing</SelectItem>
-            <SelectItem value="SHIPPED">Shipped</SelectItem>
-            <SelectItem value="DELIVERED">Delivered</SelectItem>
-            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <DatePickerWithRange />
-
-        <Button variant="outline" size="sm">
-          <Filter className="mr-2 h-4 w-4" />
-          More Filters
-        </Button>
-      </div>
-
-      {/* Orders Table */}
-      <div className="rounded-md border bg-white">
-        <Suspense
-          fallback={
-            <div className="p-8 text-center">
-              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Loading orders...
-              </p>
-            </div>
-          }
-        >
-          <OrdersList searchParams={searchParams} />
-        </Suspense>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <div className="rounded-lg border bg-white p-6">
-          <div className="flex items-center">
-            <div className="mr-3 h-8 w-2 rounded bg-blue-500" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Total Orders
-              </p>
-              <p className="text-2xl font-bold">2,847</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-white p-6">
-          <div className="flex items-center">
-            <div className="mr-3 h-8 w-2 rounded bg-yellow-500" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Pending
-              </p>
-              <p className="text-2xl font-bold">42</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-white p-6">
-          <div className="flex items-center">
-            <div className="mr-3 h-8 w-2 rounded bg-purple-500" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Processing
-              </p>
-              <p className="text-2xl font-bold">128</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-white p-6">
-          <div className="flex items-center">
-            <div className="mr-3 h-8 w-2 rounded bg-green-500" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Completed
-              </p>
-              <p className="text-2xl font-bold">2,651</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-white p-6">
-          <div className="flex items-center">
-            <div className="mr-3 h-8 w-2 rounded bg-gray-500" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Revenue
-              </p>
-              <p className="text-2xl font-bold">{formatPrice(284750)}</p>
-            </div>
-          </div>
-        </div>
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <tr>
+              <th className="px-6 py-4">Order ID</th>
+              <th className="px-6 py-4">Customer</th>
+              <th className="px-6 py-4">Total</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Payment</th>
+              <th className="px-6 py-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 italic1">
+            {orders.map((o) => (
+              <tr key={o.id} className="hover:bg-slate-50/50 transition">
+                <td className="px-6 py-5">
+                  <p className="font-black text-slate-900">#{o.id.slice(-6).toUpperCase()}</p>
+                  <p className="text-[10px] text-slate-400 font-bold">{new Date(o.orderDate).toLocaleDateString()}</p>
+                </td>
+                <td className="px-6 py-5">
+                  <p className="font-bold text-slate-800">{o.user?.name}</p>
+                  <p className="text-xs text-slate-500">{o.phone}</p>
+                </td>
+                <td className="px-6 py-5 font-black text-slate-900">
+                   ${(o.total ?? o.totalPrice).toFixed(2)}
+                </td>
+                <td className="px-6 py-5">
+                  <select
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-bold outline-none ring-orange-500/20 focus:ring-4 ${
+                      o.orderStatus === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                      o.orderStatus === 'pending' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-white text-slate-700 border-slate-200'
+                    }`}
+                    value={o.orderStatus}
+                    onChange={(e) => updateStatus(o.id, e.target.value)}
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-6 py-5">
+                  <span className="text-[10px] font-black uppercase bg-slate-100 px-2 py-1 rounded-md text-slate-500">{o.paymentMethod}</span>
+                </td>
+                <td className="px-6 py-5">
+                  <button 
+                    onClick={() => window.open(`/admin/orders/${o.id}/invoice`, '_blank')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-black text-white hover:bg-slate-800 transition"
+                  >
+                    INVOICE
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {orders.length === 0 && (
+          <div className="py-20 text-center text-slate-400 font-bold">No orders found.</div>
+        )}
       </div>
     </div>
   );

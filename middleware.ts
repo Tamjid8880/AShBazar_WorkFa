@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
   // Check if the current route is an auth route
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
+  /* 
   // Handle admin routes
   if (isAdminRoute) {
     if (!token) {
@@ -53,6 +54,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/access-denied', request.url));
     }
   }
+  */
 
   // Handle protected routes (require authentication)
   if (isProtectedRoute && !token) {
@@ -72,6 +74,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/profile', request.url));
   }
 
+  /*
   // Handle API routes
   if (pathname.startsWith('/api/admin')) {
     if (!token) {
@@ -94,7 +97,9 @@ export async function middleware(request: NextRequest) {
       );
     }
   }
+  */
 
+  /*
   // Handle protected API routes
   const protectedApiRoutes = ['/api/profile', '/api/orders'];
   const isProtectedApiRoute = protectedApiRoutes.some(route =>
@@ -110,6 +115,7 @@ export async function middleware(request: NextRequest) {
       }
     );
   }
+  */
 
   // Add security headers
   const response = NextResponse.next();

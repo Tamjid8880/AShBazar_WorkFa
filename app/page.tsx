@@ -1,195 +1,118 @@
-// File: app/page.tsx
-import { Suspense } from 'react';
-import Link from 'next/link';
-import { ArrowRight, Star, TrendingUp, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ProductGrid } from '@/components/product-grid';
-import { ProductCard } from '@/components/product-card';
-import { ProductGridSkeleton } from '@/components/product-grid-skeleton';
-import { NewsletterForm } from '@/components/newsletter-form';
-import { getFeaturedProducts, getNewProducts } from '@/server/queries/products';
-import { Metadata } from 'next';
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { getStoreNavData } from "@/lib/store-nav";
+import { firstProductImageUrl } from "@/lib/product-images";
+import StoreHeader from "@/components/store-header";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: 'Home',
-  description:
-    'Discover amazing products at unbeatable prices. Shop the latest trends and bestsellers.',
-  openGraph: {
-    title: 'NextJS E-commerce Store - Home',
-    description: 'Discover amazing products at unbeatable prices',
-    type: 'website',
-  },
-};
+export default async function HomePage() {
+  const { categories, brands } = await getStoreNavData();
+  const posters = await prisma.poster.findMany({ orderBy: { createdAt: "desc" } });
+  const products = await prisma.product.findMany({
+    take: 8,
+    orderBy: { createdAt: "desc" },
+    include: { category: true, brand: true },
+  });
 
-async function FeaturedProducts() {
-  const products = await getFeaturedProducts();
-
-  if (!products.length) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">No featured products available.</p>
-      </div>
-    );
-  }
-
-  return <ProductGrid products={products as any} />;
-}
-
-async function NewProducts() {
-  const products = await getNewProducts();
-
-  if (!products.length) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">No new products available.</p>
-      </div>
-    );
-  }
-
-  return <ProductGrid products={products.slice(0, 4) as any} />;
-}
-
-export default function HomePage() {
   return (
-    <>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-              Welcome to Our
-              <span className="block text-yellow-300">Amazing Store</span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-200">
-              Discover incredible products at unbeatable prices. From the latest
-              trends to timeless classics, we have everything you need to
-              elevate your lifestyle.
-            </p>
-            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Button
-                asChild
-                size="lg"
-                className="bg-white text-gray-900 hover:bg-gray-100"
+    <div className="min-h-screen bg-[#f6f7fb]">
+      <StoreHeader categories={categories} brands={brands} />
+
+      {/* HERO CAROUSEL */}
+      <section className="mx-auto max-w-7xl px-4 py-6">
+        <div className="relative h-[300px] md:h-[450px] w-full overflow-hidden rounded-[32px] shadow-xl">
+          {posters.length > 0 ? (
+            <div className="flex h-full animate-fade-in">
+              <img src={posters[0].imageUrl} alt={posters[0].posterName} className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent flex items-center p-12">
+                <div className="max-w-md text-white">
+                  <h2 className="text-4xl md:text-6xl font-black">{posters[0].posterName}</h2>
+                  <Link href="/shop" className="mt-6 inline-block bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition">
+                    Shop Now
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center bg-slate-200 text-slate-400">
+              No posters added. Add some in Admin Dashboard.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* CATEGORY LOGOS */}
+      <section className="mx-auto max-w-7xl px-4 py-10">
+        <h2 className="text-xl font-bold text-slate-900 mb-6 px-2">Browse by Category</h2>
+        <div className="flex flex-wrap justify-center gap-6 md:gap-10">
+          {categories.map((cat) => (
+            <Link key={cat.id} href={`/shop?category=${cat.id}`} className="group flex flex-col items-center gap-3">
+              <div className="h-20 w-20 md:h-24 md:w-24 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center p-4 group-hover:border-orange-200 group-hover:shadow-md transition">
+                {cat.image ? (
+                  <img src={cat.image} alt={cat.name} className="h-full w-full object-contain" />
+                ) : (
+                  <span className="text-2xl font-bold text-slate-300">{cat.name[0]}</span>
+                )}
+              </div>
+              <span className="text-sm font-semibold text-slate-700 group-hover:text-orange-600">{cat.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* FEATURED PRODUCTS */}
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-slate-900">Featured Products</h2>
+          <Link href="/shop" className="text-sm font-bold text-orange-600 hover:underline">View All</Link>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {products.map((product) => {
+            const img = firstProductImageUrl(product.images);
+            const price = product.offerPrice ?? product.price;
+            return (
+              <Link
+                key={product.id}
+                href={`/products/${product.id}`}
+                className="group bg-white rounded-3xl border border-slate-100 p-4 shadow-sm hover:shadow-xl hover:border-orange-100 transition-all duration-300"
               >
-                <Link href="/products">
-                  Shop Now
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="border-white text-white hover:bg-white hover:text-gray-900"
-              >
-                <Link href="/category/featured">Browse Categories</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="bg-gray-50 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-            <div className="text-center">
-              <div className="flex justify-center">
-                <Users className="h-12 w-12 text-blue-600" />
-              </div>
-              <h3 className="mt-4 text-3xl font-bold text-gray-900">10K+</h3>
-              <p className="text-gray-600">Happy Customers</p>
-            </div>
-            <div className="text-center">
-              <div className="flex justify-center">
-                <TrendingUp className="h-12 w-12 text-green-600" />
-              </div>
-              <h3 className="mt-4 text-3xl font-bold text-gray-900">500+</h3>
-              <p className="text-gray-600">Products Available</p>
-            </div>
-            <div className="text-center">
-              <div className="flex justify-center">
-                <Star className="h-12 w-12 text-yellow-600" />
-              </div>
-              <h3 className="mt-4 text-3xl font-bold text-gray-900">4.9/5</h3>
-              <p className="text-gray-600">Average Rating</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Products */}
-      <section className="py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Featured Products
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Hand-picked selections from our best-selling items
-            </p>
-          </div>
-          <div className="mt-12">
-            <Suspense fallback={<ProductGridSkeleton />}>
-              <FeaturedProducts />
-            </Suspense>
-          </div>
-          <div className="mt-12 text-center">
-            <Button asChild variant="outline" size="lg">
-              <Link href="/products">
-                View All Products
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <div className="aspect-square rounded-2xl bg-slate-50 overflow-hidden relative">
+                  {img ? (
+                    <img src={img} alt={product.name} className="h-full w-full object-cover group-hover:scale-105 transition duration-500" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-slate-300">No image</div>
+                  )}
+                  {product.offerPrice && (
+                    <div className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-lg uppercase">Sale</div>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">{product.category.name}</p>
+                  <h3 className="mt-1 font-bold text-slate-900 line-clamp-1 group-hover:text-orange-600">{product.name}</h3>
+                  <div className="mt-3 flex items-center justify-between">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-black text-slate-900">${price.toFixed(2)}</span>
+                      {product.offerPrice && (
+                        <span className="text-xs text-slate-400 line-through">${product.price.toFixed(2)}</span>
+                      )}
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-white group-hover:bg-orange-600 transition">+</div>
+                  </div>
+                </div>
               </Link>
-            </Button>
-          </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* New Arrivals */}
-      <section className="bg-gray-50 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              New Arrivals
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Fresh finds and latest additions to our collection
-            </p>
-          </div>
-          <div className="mt-12">
-            <Suspense fallback={<ProductGridSkeleton />}>
-              <NewProducts />
-            </Suspense>
-          </div>
-          <div className="mt-12 text-center">
-            <Button asChild size="lg">
-              <Link href="/products?sort=newest">
-                Shop New Arrivals
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+      {/* FOOTER */}
+      <footer className="mt-20 border-t border-slate-200 bg-white py-12">
+        <div className="mx-auto max-w-7xl px-4 text-center">
+          <p className="text-sm font-bold text-slate-900">ShopMart &copy; 2026</p>
+          <p className="mt-1 text-xs text-slate-500">Premium E-commerce Experience</p>
         </div>
-      </section>
-
-      {/* Newsletter */}
-      <section className="bg-gray-900 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Stay Updated
-            </h2>
-            <p className="mt-4 text-lg text-gray-300">
-              Subscribe to our newsletter for exclusive deals and new product
-              alerts
-            </p>
-            <NewsletterForm />
-          </div>
-        </div>
-      </section>
-    </>
+      </footer>
+    </div>
   );
 }

@@ -177,9 +177,16 @@ export default function CartPage() {
               <button
                 disabled={items.length === 0}
                 onClick={() => {
-                   // Save summary to sessionStorage for checkout
-                   sessionStorage.setItem("checkout_summary", JSON.stringify({ subtotal, discount, deliveryCharge, total, couponCode: couponInfo?.couponCode }));
-                   window.location.href = "/checkout";
+                    // Save summary to sessionStorage for checkout
+                    sessionStorage.setItem("checkout_summary", JSON.stringify({ 
+                      subtotal, 
+                      discount, 
+                      deliveryCharge, 
+                      total, 
+                      couponCode: couponInfo?.couponCode, 
+                      couponId: couponInfo?.id 
+                    }));
+                    window.location.href = "/checkout";
                 }}
                 className="w-full mt-8 rounded-2xl bg-orange-600 py-4 font-black text-white shadow-xl shadow-orange-500/30 hover:bg-orange-700 hover:scale-[1.02] transition-all disabled:opacity-40"
               >

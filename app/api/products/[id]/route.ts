@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const item = await prisma.product.findUnique({ where: { id }, include: { category: true, subCategory: true, brand: true, variantType: true } });
+  const item = await prisma.product.findUnique({
+    where: { id },
+    include: { category: true, subCategory: true, brand: true, variantType: true, variants: { include: { variant: true } } }
+  });
   if (!item) return apiError("Product not found.", 404);
   return apiSuccess("Product retrieved successfully.", item);
 }
@@ -17,15 +20,18 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
     data: {
       name: body.name,
       description: body.description,
-      quantity: Number(body.quantity),
-      price: Number(body.price),
-      offerPrice: body.offerPrice ? Number(body.offerPrice) : null,
+      quantity: body.quantity !== undefined ? Number(body.quantity) : undefined,
+      price: body.price !== undefined ? Number(body.price) : undefined,
+      offerPrice: body.offerPrice !== undefined ? (body.offerPrice ? Number(body.offerPrice) : null) : undefined,
       proCategoryId: body.proCategoryId,
       proSubCategoryId: body.proSubCategoryId,
       proBrandId: body.proBrandId,
       proVariantTypeId: body.proVariantTypeId,
-      proVariantId: Array.isArray(body.proVariantId) ? body.proVariantId : [],
-      images: Array.isArray(body.images) ? body.images : []
+      proVariantId: Array.isArray(body.proVariantId) ? body.proVariantId : undefined,
+      images: Array.isArray(body.images) ? body.images : undefined,
+      isHotDeal: body.isHotDeal !== undefined ? !!body.isHotDeal : undefined,
+      isSpecialOffer: body.isSpecialOffer !== undefined ? !!body.isSpecialOffer : undefined,
+      isHidden: body.isHidden !== undefined ? !!body.isHidden : undefined,
     }
   });
 

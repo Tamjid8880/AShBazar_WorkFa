@@ -9,8 +9,19 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const { categories, brands } = await getStoreNavData();
   const posters = await prisma.poster.findMany({ orderBy: { createdAt: "desc" } });
+  const hotDeals = await prisma.product.findMany({
+    where: { isHotDeal: true },
+    include: { category: true },
+    take: 4
+  });
+  const specialOffers = await prisma.product.findMany({
+    where: { isSpecialOffer: true },
+    include: { category: true },
+    take: 4
+  });
   const products = await prisma.product.findMany({
     take: 8,
+    where: { isHotDeal: false, isSpecialOffer: false },
     orderBy: { createdAt: "desc" },
     include: { category: true, brand: true },
   });
@@ -60,6 +71,50 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* HOT DEALS */}
+      {hotDeals.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-8">
+          <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-8 text-white opacity-20 text-9xl font-black">HOT</div>
+             <h2 className="text-3xl md:text-5xl font-black text-white mb-8 relative z-10">🔥 Hot Deals!</h2>
+             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
+                {hotDeals.map(p => (
+                  <Link key={p.id} href={`/products/${p.id}`} className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 hover:bg-white transition flex flex-col group">
+                     <div className="aspect-square rounded-2xl bg-white overflow-hidden">
+                        <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
+                     </div>
+                     <h3 className="mt-4 font-bold text-white group-hover:text-slate-900 line-clamp-1">{p.name}</h3>
+                     <p className="mt-1 text-2xl font-black text-white group-hover:text-orange-600">${p.offerPrice ?? p.price}</p>
+                  </Link>
+                ))}
+             </div>
+          </div>
+        </section>
+      )}
+
+      {/* SPECIAL OFFERS */}
+      {specialOffers.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-12">
+            <h2 className="text-2xl font-bold text-slate-900 mb-8 px-2">🌟 Special Offers</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {specialOffers.map(p => (
+                   <Link key={p.id} href={`/products/${p.id}`} className="flex flex-col gap-4 bg-white rounded-3xl p-5 border border-slate-100 hover:shadow-xl transition group">
+                      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-50">
+                        <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest">{p.category.name}</p>
+                        <h3 className="font-bold text-slate-900 line-clamp-1">{p.name}</h3>
+                        <div className="mt-4 bg-orange-100 text-orange-700 rounded-full py-1 text-center text-[10px] font-black uppercase tracking-widest">
+                            SAVE BIG NOW
+                        </div>
+                      </div>
+                   </Link>
+                ))}
+            </div>
+        </section>
+      )}
 
       {/* FEATURED PRODUCTS */}
       <section className="mx-auto max-w-7xl px-4 py-12">

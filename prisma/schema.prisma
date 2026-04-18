@@ -100,6 +100,9 @@ model Product {
   proVariantTypeId String?
   proVariantId     String[]
   images           Json
+  isHotDeal        Boolean          @default(false)
+  isSpecialOffer   Boolean          @default(false)
+  isHidden         Boolean          @default(false)
   category         Category         @relation(fields: [proCategoryId], references: [id], onDelete: Restrict)
   subCategory      SubCategory      @relation(fields: [proSubCategoryId], references: [id], onDelete: Restrict)
   brand            Brand?           @relation(fields: [proBrandId], references: [id], onDelete: SetNull)
@@ -107,6 +110,7 @@ model Product {
   variants         ProductVariant[]
   coupons          CouponCode[]     @relation("CouponProduct")
   orderItems       OrderItem[]
+  reviews          Review[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 }
@@ -146,13 +150,15 @@ model User {
   address   String?
   password  String
   orders    Order[]
+  reviews   Review[]
+  complaints Complaint[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model ProductVariant {
   id         String  @id @default(cuid())
-  productId  String
+  productId  String 
   variantId  String
   price      Float
   offerPrice Float?
@@ -192,6 +198,7 @@ model Order {
   user          User          @relation(fields: [userID], references: [id], onDelete: Restrict)
   couponCode    CouponCode?   @relation(fields: [couponCodeId], references: [id], onDelete: SetNull)
   items         OrderItem[]
+  statusHistory OrderStatusHistory[]
 }
 
 model OrderItem {
@@ -214,4 +221,37 @@ model Notification {
   imageUrl       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int      @default(5)
+  comment   String?
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Complaint {
+  id          String   @id @default(cuid())
+  ticketId    String   @unique
+  userId      String
+  subject     String
+  description String
+  status      String   @default("open")
+  adminReply  String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(cuid())
+  orderId     String
+  status      OrderStatus
+  message     String?
+  dispatchId  String?
+  createdAt   DateTime    @default(now())
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }

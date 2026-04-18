@@ -219,6 +219,47 @@ export default function ProductPurchaseClient({
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500"></span> 24/7 Support</span>
           </div>
         </div>
+
+        {/* REVIEW FORM */}
+        <div className="mt-8 rounded-[32px] bg-slate-50 p-6 border border-slate-100">
+           <h3 className="font-black text-slate-900 mb-4">Leave a Review</h3>
+           <form 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.target as any;
+                const user = JSON.parse(localStorage.getItem("auth_user") || "{}");
+                if(!user.id) { alert("Please login to review."); return; }
+                const res = await fetch("/api/reviews", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    productId,
+                    userId: user.id,
+                    rating: form.rating.value,
+                    comment: form.comment.value
+                  })
+                });
+                if (res.ok) {
+                  alert("Review submitted! Thank you.");
+                  form.reset();
+                }
+              }}
+              className="space-y-4"
+           >
+              <div className="flex gap-4 items-center">
+                 <label className="text-xs font-bold text-slate-500 uppercase">Rating</label>
+                 <select name="rating" className="bg-white border-slate-200 rounded-lg text-sm font-bold">
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Very Good</option>
+                    <option value="3">3 - Good</option>
+                    <option value="2">2 - Fair</option>
+                    <option value="1">1 - Poor</option>
+                 </select>
+              </div>
+              <textarea name="comment" placeholder="Tell us what you think..." className="w-full bg-white border-slate-200 rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-orange-500/10 outline-none" rows={3} required></textarea>
+              <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-xs hover:bg-slate-800 transition">POST REVIEW</button>
+           </form>
+        </div>
       </div>
     </div>
   );

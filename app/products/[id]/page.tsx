@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getStoreNavData } from "@/lib/store-nav";
 import StoreHeader from "@/components/store-header";
 import ProductPurchaseClient from "@/components/product-purchase-client";
+import ReviewComplaintSection from "@/components/review-complaint-section";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
     getStoreNavData()
   ]);
 
-  if (!product) notFound();
+  if (!product || product.isHidden) notFound();
 
   const variantIds = Array.isArray(product.proVariantId) ? product.proVariantId : [];
   const variantRows =
@@ -40,10 +41,36 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
     typeValue: v.variantType.type
   }));
 
+  const isOutOfStock = product.quantity <= 0;
+
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
       <StoreHeader categories={nav.categories} brands={nav.brands} compact />
       <div className="mx-auto max-w-7xl px-4 py-8">
+
+        {/* OUT OF STOCK BANNER */}
+        {isOutOfStock && (
+          <div className="mb-6 rounded-2xl bg-red-50 border border-red-200 px-6 py-4 flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <p className="font-black text-red-700">Out of Stock</p>
+              <p className="text-sm text-red-500">This product is currently unavailable. Check back later!</p>
+            </div>
+          </div>
+        )}
+
+        {/* PROMOTIONAL BADGES */}
+        {(product.isHotDeal || product.isSpecialOffer) && (
+          <div className="mb-4 flex gap-3">
+            {product.isHotDeal && (
+              <span className="bg-orange-600 text-white text-xs font-black px-4 py-1.5 rounded-full">🔥 HOT DEAL</span>
+            )}
+            {product.isSpecialOffer && (
+              <span className="bg-blue-600 text-white text-xs font-black px-4 py-1.5 rounded-full">🌟 SPECIAL OFFER</span>
+            )}
+          </div>
+        )}
+
         <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-10">
           <ProductPurchaseClient
             productId={product.id}
@@ -55,6 +82,11 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
             imagesJson={product.images}
             productVariants={product.variants as any}
           />
+        </div>
+
+        {/* REVIEWS & COMPLAINT SECTION */}
+        <div className="mt-8">
+          <ReviewComplaintSection productId={product.id} productName={product.name} />
         </div>
       </div>
     </div>

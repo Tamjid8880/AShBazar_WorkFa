@@ -16,22 +16,29 @@ export async function POST(req: Request) {
     return apiError("Required fields are missing.", 400);
   }
 
+  const { 
+    name, description, quantity, price, offerPrice, weight, 
+    proCategoryId, proSubCategoryId, proBrandId, proVariantTypeId, images, variants,
+    isHotDeal, isSpecialOffer
+  } = body;
+
   await prisma.product.create({
     data: {
-      name: body.name,
-      description: body.description,
-      quantity: Number(body.quantity),
-      price: Number(body.price),
-      offerPrice: body.offerPrice ? Number(body.offerPrice) : null,
-      weight: body.weight ? Number(body.weight) : 0,
-      proCategoryId: body.proCategoryId,
-      proSubCategoryId: body.proSubCategoryId,
-      proBrandId: body.proBrandId,
-      proVariantTypeId: body.proVariantTypeId,
-      proVariantId: Array.isArray(body.proVariantId) ? body.proVariantId : [],
-      images: Array.isArray(body.images) ? body.images : [],
+      name,
+      description,
+      quantity: Number(quantity),
+      price: Number(price),
+      offerPrice: offerPrice ? Number(offerPrice) : null,
+      weight: weight ? Number(weight) : 0,
+      proCategoryId,
+      proSubCategoryId,
+      proBrandId,
+      proVariantTypeId,
+      isHotDeal: !!isHotDeal,
+      isSpecialOffer: !!isSpecialOffer,
+      images: Array.isArray(images) ? images : [],
       variants: {
-        create: (body.variants || []).map((v: any) => ({
+        create: (variants || []).map((v: any) => ({
           variantId: v.variantId,
           price: Number(v.price),
           offerPrice: v.offerPrice ? Number(v.offerPrice) : null,

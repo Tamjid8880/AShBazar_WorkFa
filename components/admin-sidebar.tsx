@@ -9,6 +9,7 @@ const links = [
   { href: "/admin/variants", label: "Variants", icon: "○" },
   { href: "/admin/coupons", label: "Coupons", icon: "%" },
   { href: "/admin/posters", label: "Posters", icon: "▨" },
+  { href: "/admin/complaints", label: "Complaints", icon: "☏" },
   { href: "/admin/low-stock", label: "Low stock", icon: "!" },
   { href: "/admin/shipping", label: "Shipping", icon: "✈" }
 ];

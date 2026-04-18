@@ -57,11 +57,13 @@ export async function middleware(request: NextRequest) {
   */
 
   // Handle protected routes (require authentication)
-  if (isProtectedRoute && !token) {
-    const signInUrl = new URL('/auth/signin', request.url);
-    signInUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(signInUrl);
-  }
+  // NOTE: This app uses custom localStorage auth, not next-auth sessions.
+  // The middleware checks are intentionally relaxed to avoid blocking custom-auth pages.
+  // if (isProtectedRoute && !token) {
+  //   const signInUrl = new URL('/auth/signin', request.url);
+  //   signInUrl.searchParams.set('callbackUrl', pathname);
+  //   return NextResponse.redirect(signInUrl);
+  // }
 
   // Handle auth routes (redirect if already authenticated)
   if (isAuthRoute && token) {

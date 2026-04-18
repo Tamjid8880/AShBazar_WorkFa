@@ -11,7 +11,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { userID, items, totalPrice, shippingAddress, paymentMethod, couponCode, orderTotal, orderStatus, trackingUrl } = body;
+  const { userID, items, totalPrice, shippingAddress, paymentMethod, couponCodeId, orderTotal, orderStatus, trackingUrl } = body;
 
   if (!userID || !Array.isArray(items) || !totalPrice || !shippingAddress || !paymentMethod || !orderTotal) {
     return apiError("User ID, items, totalPrice, shippingAddress, paymentMethod, and orderTotal are required.", 400);
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     data: {
       userID,
       orderStatus: orderStatus ?? "pending",
-      stockDeducted: false,
+      stockDeducted: true,
       totalPrice: Number(totalPrice),
       phone: shippingAddress.phone,
       street: shippingAddress.street,
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       postalCode: shippingAddress.postalCode,
       country: shippingAddress.country,
       paymentMethod,
-      couponCodeId: couponCode,
+      couponCodeId,
       subtotal: orderTotal.subtotal,
       discount: orderTotal.discount,
       deliveryCharge: orderTotal.deliveryCharge,
@@ -44,9 +44,23 @@ export async function POST(req: Request) {
           price: Number(item.price),
           variant: item.variant
         }))
+      },
+      statusHistory: {
+        create: {
+          status: orderStatus ?? "pending",
+          message: "Parcel information has been inserted.",
+        }
       }
     }
   });
+
+  // Deduct stock for each ordered item
+  for (const item of items) {
+    await prisma.product.update({
+      where: { id: item.productID },
+      data: { quantity: { decrement: Number(item.quantity) } }
+    });
+  }
 
   return apiSuccess("Order created successfully.", null);
 }

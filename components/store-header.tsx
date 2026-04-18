@@ -38,6 +38,9 @@ export default function StoreHeader({ categories, brands, compact, search }: Pro
             <Link href="/checkout" className="hover:text-orange-600">
               Checkout
             </Link>
+            <Link href="/profile" className="font-bold text-orange-600 border-l border-slate-200 pl-4 hover:text-orange-700">
+               PROFILE
+            </Link>
           </nav>
         </div>
         <div className="flex flex-wrap items-center gap-3">

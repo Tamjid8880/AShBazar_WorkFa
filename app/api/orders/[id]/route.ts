@@ -44,6 +44,16 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
       const becameDelivered = orderStatus === "delivered" && order.orderStatus !== "delivered";
       const shouldDeduct = becameDelivered && !order.stockDeducted;
 
+      // Add to status history
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: orderStatus,
+          message: `Status has been updated as ${orderStatus}`,
+          dispatchId: trackingUrl || null
+        }
+      });
+
       if (shouldDeduct) {
         for (const line of order.items) {
           const product = await tx.product.findUnique({ where: { id: line.productID } });

@@ -105,7 +105,7 @@ export default function CheckoutPage() {
         country: "Bangladesh" 
       },
       paymentMethod,
-      couponCode: appliedCoupon?.couponCode || summary?.couponCode,
+      couponCodeId: appliedCoupon?.id || summary?.couponId,
       orderTotal: { 
         subtotal: subtotal, 
         discount: discountAmount, 

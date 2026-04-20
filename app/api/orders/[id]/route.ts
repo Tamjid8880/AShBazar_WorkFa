@@ -71,6 +71,37 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
         return;
       }
 
+      if (orderStatus === "cancelled" && order.stockDeducted) {
+        // Restock
+        for (const line of order.items) {
+          // Add to main product
+          await tx.product.update({
+            where: { id: line.productID },
+            data: { quantity: { increment: line.quantity } }
+          });
+          // Add to variant if available
+          if (line.variant) {
+            const existingPv = await tx.productVariant.findFirst({
+              where: {
+                productId: line.productID,
+                variant: { name: line.variant }
+              }
+            });
+            if (existingPv) {
+              await tx.productVariant.update({
+                where: { id: existingPv.id },
+                data: { stock: { increment: line.quantity } }
+              });
+            }
+          }
+        }
+        await tx.order.update({
+          where: { id },
+          data: { orderStatus, trackingUrl, stockDeducted: false }
+        });
+        return;
+      }
+
       await tx.order.update({
         where: { id },
         data: { orderStatus, trackingUrl }

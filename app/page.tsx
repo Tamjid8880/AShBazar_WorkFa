@@ -7,28 +7,28 @@ import StoreHeader from "@/components/store-header";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { categories, brands } = await getStoreNavData();
+  const { categories, brands, logoUrl } = await getStoreNavData();
   const posters = await prisma.poster.findMany({ orderBy: { createdAt: "desc" } });
   const hotDeals = await prisma.product.findMany({
     where: { isHotDeal: true },
-    include: { category: true },
+    include: { category: true, variants: true },
     take: 4
   });
   const specialOffers = await prisma.product.findMany({
     where: { isSpecialOffer: true },
-    include: { category: true },
+    include: { category: true, variants: true },
     take: 4
   });
   const products = await prisma.product.findMany({
     take: 8,
     where: { isHotDeal: false, isSpecialOffer: false },
     orderBy: { createdAt: "desc" },
-    include: { category: true, brand: true },
+    include: { category: true, brand: true, variants: true },
   });
 
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
-      <StoreHeader categories={categories} brands={brands} />
+      <StoreHeader categories={categories} brands={brands} logoUrl={logoUrl} />
 
       {/* HERO CAROUSEL */}
       <section className="mx-auto max-w-7xl px-4 py-6">
@@ -76,19 +76,41 @@ export default async function HomePage() {
       {hotDeals.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-8">
           <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-8 text-white opacity-20 text-9xl font-black">HOT</div>
-             <h2 className="text-3xl md:text-5xl font-black text-white mb-8 relative z-10">🔥 Hot Deals!</h2>
-             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
-                {hotDeals.map(p => (
-                  <Link key={p.id} href={`/products/${p.id}`} className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 hover:bg-white transition flex flex-col group">
-                     <div className="aspect-square rounded-2xl bg-white overflow-hidden">
-                        <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
-                     </div>
-                     <h3 className="mt-4 font-bold text-white group-hover:text-slate-900 line-clamp-1">{p.name}</h3>
-                     <p className="mt-1 text-2xl font-black text-white group-hover:text-orange-600">${p.offerPrice ?? p.price}</p>
-                  </Link>
-                ))}
-             </div>
+            <div className="absolute top-0 right-0 p-8 text-white opacity-20 text-9xl font-black">HOT</div>
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-8 relative z-10">🔥 Hot Deals!</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
+              {hotDeals.map(p => {
+                const variants = (p as any).variants || [];
+                const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
+                const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : p.quantity <= 0;
+                const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (p.quantity > 0 && p.quantity <= 5);
+
+                return (
+                 <Link key={p.id} href={`/products/${p.id}`} className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 hover:bg-white transition flex flex-col group">
+                   <div className="aspect-square rounded-2xl bg-white overflow-hidden relative">
+                     <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
+                     {isOutOfStock && (
+                       <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                           <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
+                       </div>
+                     )}
+                     {!isOutOfStock && isLowStock && (
+                       <div className="absolute top-3 right-3 z-10">
+                           <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200 shadow-sm">Low Stock</span>
+                       </div>
+                     )}
+                   </div>
+                  <h3 className="mt-4 font-bold text-white group-hover:text-slate-900 line-clamp-1">{p.name}</h3>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-white group-hover:text-orange-600">৳{(p.offerPrice ?? p.price).toFixed(2)}</span>
+                    {p.offerPrice != null && p.offerPrice < p.price && (
+                      <span className="text-xs font-bold text-white/80 group-hover:text-red-500">{Math.round(((p.price - p.offerPrice) / p.price) * 100)}% OFF</span>
+                    )}
+                  </div>
+                </Link>
+              );
+              })}
+            </div>
           </div>
         </section>
       )}
@@ -96,23 +118,49 @@ export default async function HomePage() {
       {/* SPECIAL OFFERS */}
       {specialOffers.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-12">
-            <h2 className="text-2xl font-bold text-slate-900 mb-8 px-2">🌟 Special Offers</h2>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {specialOffers.map(p => (
-                   <Link key={p.id} href={`/products/${p.id}`} className="flex flex-col gap-4 bg-white rounded-3xl p-5 border border-slate-100 hover:shadow-xl transition group">
-                      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-50">
-                        <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest">{p.category.name}</p>
-                        <h3 className="font-bold text-slate-900 line-clamp-1">{p.name}</h3>
-                        <div className="mt-4 bg-orange-100 text-orange-700 rounded-full py-1 text-center text-[10px] font-black uppercase tracking-widest">
-                            SAVE BIG NOW
-                        </div>
-                      </div>
-                   </Link>
-                ))}
-            </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-8 px-2">🌟 Special Offers</h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {specialOffers.map(p => {
+              const variants = (p as any).variants || [];
+              const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
+              const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : p.quantity <= 0;
+              const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (p.quantity > 0 && p.quantity <= 5);
+
+              return (
+               <Link key={p.id} href={`/products/${p.id}`} className="flex flex-col gap-4 bg-white rounded-3xl p-5 border border-slate-100 hover:shadow-xl transition group">
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-50 relative">
+                  <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover" />
+                  {isOutOfStock && (
+                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                        <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
+                    </div>
+                  )}
+                  {!isOutOfStock && isLowStock && (
+                    <div className="absolute top-3 right-3 z-10">
+                        <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200">Low Stock</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest">{p.category.name}</p>
+                  <h3 className="font-bold text-slate-900 line-clamp-1">{p.name}</h3>
+                  <div className="mt-2 flex items-baseline gap-2">
+                     <span className="text-xl font-black text-slate-900">৳{(p.offerPrice ?? p.price).toFixed(2)}</span>
+                     {p.offerPrice != null && p.offerPrice < p.price && (
+                       <>
+                         <span className="text-sm text-slate-400 line-through">৳{p.price.toFixed(2)}</span>
+                         <span className="text-xs font-black text-red-500">{Math.round(((p.price - p.offerPrice) / p.price) * 100)}% OFF</span>
+                       </>
+                     )}
+                  </div>
+                  <div className="mt-4 bg-orange-100 text-orange-700 rounded-full py-1 text-center text-[10px] font-black uppercase tracking-widest">
+                    SAVE BIG NOW
+                  </div>
+                </div>
+              </Link>
+              );
+            })}
+          </div>
         </section>
       )}
 
@@ -126,6 +174,11 @@ export default async function HomePage() {
           {products.map((product) => {
             const img = firstProductImageUrl(product.images);
             const price = product.offerPrice ?? product.price;
+            const variants = (product as any).variants || [];
+            const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
+            const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : product.quantity <= 0;
+            const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (product.quantity > 0 && product.quantity <= 5);
+
             return (
               <Link
                 key={product.id}
@@ -138,8 +191,21 @@ export default async function HomePage() {
                   ) : (
                     <div className="flex h-full items-center justify-center text-xs text-slate-300">No image</div>
                   )}
-                  {product.offerPrice && (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-lg uppercase">Sale</div>
+                  {isOutOfStock && (
+                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                        <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
+                    </div>
+                  )}
+                  {!isOutOfStock && isLowStock && (
+                    <div className="absolute top-3 right-3 z-10">
+                        <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200">Low Stock</span>
+                    </div>
+                  )}
+                  {product.offerPrice && product.offerPrice < product.price && (
+                    <div className="absolute top-3 left-3 flex gap-1">
+                      <span className="bg-orange-600 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter">Sale</span>
+                      <span className="bg-red-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter shadow-sm">{Math.round(((product.price - product.offerPrice) / product.price) * 100)}% OFF</span>
+                    </div>
                   )}
                 </div>
                 <div className="mt-4">
@@ -147,9 +213,9 @@ export default async function HomePage() {
                   <h3 className="mt-1 font-bold text-slate-900 line-clamp-1 group-hover:text-orange-600">{product.name}</h3>
                   <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-black text-slate-900">${price.toFixed(2)}</span>
-                      {product.offerPrice && (
-                        <span className="text-xs text-slate-400 line-through">${product.price.toFixed(2)}</span>
+                      <span className="text-lg font-black text-slate-900">৳{price.toFixed(2)}</span>
+                      {product.offerPrice && product.offerPrice < product.price && (
+                        <span className="text-xs text-slate-400 line-through">৳{product.price.toFixed(2)}</span>
                       )}
                     </div>
                     <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-white group-hover:bg-orange-600 transition">+</div>
@@ -164,7 +230,7 @@ export default async function HomePage() {
       {/* FOOTER */}
       <footer className="mt-20 border-t border-slate-200 bg-white py-12">
         <div className="mx-auto max-w-7xl px-4 text-center">
-          <p className="text-sm font-bold text-slate-900">ShopMart &copy; 2026</p>
+          <p className="text-sm font-bold text-slate-900">AshBazar &copy; 2026</p>
           <p className="mt-1 text-xs text-slate-500">Premium E-commerce Experience</p>
         </div>
       </footer>

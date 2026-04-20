@@ -35,7 +35,7 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 py-12">
       <section className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900">Create account</h1>
-        <p className="mt-1 text-sm text-slate-600">Join ShopMart to track orders and checkout faster.</p>
+        <p className="mt-1 text-sm text-slate-600">Join AshBazar to track orders and checkout faster.</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase text-slate-500">Username</label>

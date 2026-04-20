@@ -17,6 +17,32 @@ export async function POST(req: Request) {
     return apiError("User ID, items, totalPrice, shippingAddress, paymentMethod, and orderTotal are required.", 400);
   }
 
+  // Check stock before creating order
+  for (const item of items) {
+    const product = await prisma.product.findUnique({
+      where: { id: item.productID },
+      include: { variants: { include: { variant: true } } }
+    });
+    
+    if (!product) {
+      return apiError(`Product ${item.productName} not found.`, 404);
+    }
+
+    if (item.variant) {
+      const existingPv = product.variants.find(v => v.variant.name === item.variant);
+      if (!existingPv) {
+        return apiError(`Variant ${item.variant} not found for ${item.productName}.`, 404);
+      }
+      if (existingPv.stock < Number(item.quantity)) {
+        return apiError(`${item.productName} (${item.variant}) is out of stock. Available: ${existingPv.stock}.`, 400);
+      }
+    } else {
+      if (product.quantity < Number(item.quantity)) {
+        return apiError(`${item.productName} is out of stock. Available: ${product.quantity}.`, 400);
+      }
+    }
+  }
+
   await prisma.order.create({
     data: {
       userID,
@@ -56,6 +82,21 @@ export async function POST(req: Request) {
 
   // Deduct stock for each ordered item
   for (const item of items) {
+    if (item.variant) {
+      // Find the specific ProductVariant
+      const existingPv = await prisma.productVariant.findFirst({
+        where: {
+          productId: item.productID,
+          variant: { name: item.variant }
+        }
+      });
+      if (existingPv) {
+        await prisma.productVariant.update({
+          where: { id: existingPv.id },
+          data: { stock: { decrement: Number(item.quantity) } }
+        });
+      }
+    }
     await prisma.product.update({
       where: { id: item.productID },
       data: { quantity: { decrement: Number(item.quantity) } }

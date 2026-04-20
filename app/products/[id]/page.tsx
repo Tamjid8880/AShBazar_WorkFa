@@ -41,23 +41,29 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
     typeValue: v.variantType.type
   }));
 
-  const isOutOfStock = product.quantity <= 0;
+  const totalVariantStock = product.variants.reduce((acc, pv) => acc + pv.stock, 0);
+  const isOutOfStock = product.variants.length > 0 ? totalVariantStock <= 0 : product.quantity <= 0;
+  const isLowStock = product.variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (product.quantity > 0 && product.quantity <= 5);
 
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
-      <StoreHeader categories={nav.categories} brands={nav.brands} compact />
+      <StoreHeader categories={nav.categories} brands={nav.brands} logoUrl={nav.logoUrl} compact />
       <div className="mx-auto max-w-7xl px-4 py-8">
 
         {/* OUT OF STOCK BANNER */}
-        {isOutOfStock && (
-          <div className="mb-6 rounded-2xl bg-red-50 border border-red-200 px-6 py-4 flex items-center gap-3">
-            <span className="text-2xl">⚠️</span>
+        {isOutOfStock ? (
+          <div className="mb-6 rounded-2xl bg-red-50 border border-red-200 px-6 py-4 flex items-center gap-3 w-max">
+            <span className="text-xl">⚠️</span>
             <div>
-              <p className="font-black text-red-700">Out of Stock</p>
-              <p className="text-sm text-red-500">This product is currently unavailable. Check back later!</p>
+              <p className="font-black text-red-700 text-sm">Out of Stock</p>
             </div>
           </div>
-        )}
+        ) : isLowStock ? (
+          <div className="mb-6 rounded-2xl bg-orange-50 border border-orange-200 px-4 py-2 flex items-center gap-2 w-max">
+            <span className="text-lg">⚡</span>
+            <p className="text-xs font-black text-orange-700 uppercase tracking-widest">Low Stock — Order Quick!</p>
+          </div>
+        ) : null}
 
         {/* PROMOTIONAL BADGES */}
         {(product.isHotDeal || product.isSpecialOffer) && (

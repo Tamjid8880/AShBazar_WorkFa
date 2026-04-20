@@ -255,3 +255,8 @@ model OrderStatusHistory {
   createdAt   DateTime    @default(now())
   order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
+
+model StoreSetting {
+  id      String  @id @default("default")
+  logoUrl String?
+}

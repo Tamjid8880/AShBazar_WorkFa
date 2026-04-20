@@ -5,7 +5,7 @@ import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "ShopMart",
+  title: "AshBazar",
   description: "Ecommerce storefront and admin"
 };
 

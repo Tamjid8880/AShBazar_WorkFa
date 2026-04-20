@@ -13,11 +13,11 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const q = (sp.q ?? "").trim();
   const categoryId = sp.category ?? "";
   const brandId = sp.brand ?? "";
-
-  const { categories, brands } = await getStoreNavData();
+  const { categories, brands, logoUrl } = await getStoreNavData();
 
   const products = await prisma.product.findMany({
     where: {
+      isHidden: false,
       AND: [
         q ? { name: { contains: q, mode: "insensitive" } } : {},
         categoryId ? { proCategoryId: categoryId } : {},
@@ -25,7 +25,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
       ]
     },
     orderBy: { createdAt: "desc" },
-    include: { category: true, brand: true },
+    include: { category: true, brand: true, variants: true },
     take: 48
   });
 
@@ -34,6 +34,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
       <StoreHeader
         categories={categories}
         brands={brands}
+        logoUrl={logoUrl}
         search={{ q, categoryId, brandId }}
       />
       <div className="mx-auto max-w-7xl px-4 py-12">
@@ -54,6 +55,11 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
           {products.map((product) => {
             const img = firstProductImageUrl(product.images);
             const price = product.offerPrice ?? product.price;
+            const variants = (product as any).variants || [];
+            const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
+            const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : product.quantity <= 0;
+            const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (product.quantity > 0 && product.quantity <= 5);
+
             return (
               <Link
                 key={product.id}
@@ -66,13 +72,21 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
                   ) : (
                     <div className="flex h-full items-center justify-center text-xs text-slate-300">No image</div>
                   )}
-                  {product.quantity <= 0 && (
-                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                  {isOutOfStock && (
+                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
                         <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
                     </div>
                   )}
-                  {product.offerPrice && (
-                    <div className="absolute top-3 left-3 bg-orange-600 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter">Sale</div>
+                  {!isOutOfStock && isLowStock && (
+                    <div className="absolute top-3 right-3 z-10">
+                        <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200">Low Stock</span>
+                    </div>
+                  )}
+                  {product.offerPrice && product.offerPrice < product.price && (
+                    <div className="absolute top-3 left-3 flex gap-1">
+                      <span className="bg-orange-600 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter">Sale</span>
+                      <span className="bg-red-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter shadow-sm">{Math.round(((product.price - product.offerPrice) / product.price) * 100)}% OFF</span>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-1 flex-col p-2 pt-5">
@@ -86,9 +100,9 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
                   </h2>
                   <div className="mt-auto pt-4 flex items-center justify-between">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-black text-slate-900">${price.toFixed(2)}</span>
-                      {product.offerPrice && (
-                        <span className="text-xs text-slate-400 line-through">${product.price.toFixed(2)}</span>
+                      <span className="text-xl font-black text-slate-900">৳{price.toFixed(2)}</span>
+                      {product.offerPrice && product.offerPrice < product.price && (
+                        <span className="text-xs text-slate-400 line-through">৳{product.price.toFixed(2)}</span>
                       )}
                     </div>
                     <div className="h-9 w-9 rounded-2xl bg-slate-900 flex items-center justify-center text-white group-hover:bg-orange-600 transition-all duration-300 group-hover:rotate-90">+</div>

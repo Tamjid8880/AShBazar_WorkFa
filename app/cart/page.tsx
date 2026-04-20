@@ -73,7 +73,13 @@ export default function CartPage() {
     const next = readCart()
       .map((line) => {
         if (line.lineId !== lineId) return line;
-        return { ...line, quantity: Math.max(1, line.quantity + delta) };
+        const maxLimit = line.maxStock ?? Infinity;
+        const nextQty = line.quantity + delta;
+        if (nextQty > maxLimit) {
+            alert(`Sorry, only ৳{maxLimit} items available in stock.`);
+            return line;
+        }
+        return { ...line, quantity: Math.max(1, nextQty) };
       });
     writeCart(next);
     refresh();
@@ -115,8 +121,8 @@ export default function CartPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-slate-900 text-xl">${(item.price * item.quantity).toFixed(2)}</p>
-                    <p className="text-[10px] font-bold text-slate-400 mt-1">${item.price.toFixed(2)} / unit</p>
+                    <p className="font-black text-slate-900 text-xl">৳{(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1">৳{item.price.toFixed(2)} / unit</p>
                   </div>
                 </article>
               ))
@@ -131,21 +137,21 @@ export default function CartPage() {
               <div className="space-y-4 text-sm font-bold">
                 <div className="flex justify-between text-slate-500">
                   <span>Subtotal</span>
-                  <span className="text-slate-900">${subtotal.toFixed(2)}</span>
+                  <span className="text-slate-900">৳{subtotal.toFixed(2)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-emerald-600">
                     <span>Discount</span>
-                    <span>-${discount.toFixed(2)}</span>
+                    <span>-৳{discount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-500">
                   <span>Delivery Fee</span>
-                  <span className="text-slate-900">${deliveryCharge.toFixed(2)}</span>
+                  <span className="text-slate-900">৳{deliveryCharge.toFixed(2)}</span>
                 </div>
                 <div className="pt-4 border-t border-slate-100 flex justify-between text-xl font-black">
                   <span>Total</span>
-                  <span className="text-orange-600">${total.toFixed(2)}</span>
+                  <span className="text-orange-600">৳{total.toFixed(2)}</span>
                 </div>
               </div>
 

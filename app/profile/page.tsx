@@ -129,7 +129,7 @@ export default function ProfilePage() {
                                 return (
                                     <div key={h.id} className="relative flex gap-10 pb-10 last:pb-0">
                                         {/* DOT */}
-                                        <div className={`z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-4 border-white shadow-sm ${isLatest ? 'bg-emerald-500 scale-110' : 'bg-slate-200'}`}>
+                                        <div className={`z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-4 border-white shadow-sm ৳{isLatest ? 'bg-emerald-500 scale-110' : 'bg-slate-200'}`}>
                                             {isLatest ? (
                                                 <span className="text-white text-xs">✓</span>
                                             ) : (
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                                         <div className="flex-1 pt-1">
                                             <div className="flex justify-between items-start gap-4">
                                                 <div>
-                                                    <p className={`font-black text-sm uppercase tracking-tight ${isLatest ? 'text-emerald-600' : 'text-slate-500'}`}>{h.message}</p>
+                                                    <p className={`font-black text-sm uppercase tracking-tight ৳{isLatest ? 'text-emerald-600' : 'text-slate-500'}`}>{h.message}</p>
                                                     {h.dispatchId && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Dispatch ID: {h.dispatchId}</p>}
                                                 </div>
                                                 <div className="text-right shrink-0">
@@ -157,7 +157,7 @@ export default function ProfilePage() {
                           <div className="mt-12 pt-8 border-t border-slate-50 flex justify-between items-center">
                              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Items: {order.items?.length}</p>
                              <div className="flex items-center gap-6">
-                                <p className="text-2xl font-black text-slate-900">${order.total?.toFixed(2)}</p>
+                                <p className="text-2xl font-black text-slate-900">৳{order.total?.toFixed(2)}</p>
                                 <button 
                                   onClick={() => {
                                     const currentCart = JSON.parse(localStorage.getItem("cart") || "[]");

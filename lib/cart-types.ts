@@ -7,4 +7,5 @@ export type CartLine = {
   variantId?: string | null;
   variantLabel?: string;
   imageUrl?: string | null;
+  maxStock?: number;
 };

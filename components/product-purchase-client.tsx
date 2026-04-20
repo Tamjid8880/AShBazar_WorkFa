@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { firstProductImageUrl, parseProductImages } from "@/lib/product-images";
 
 type ProductVariant = {
@@ -45,8 +45,22 @@ export default function ProductPurchaseClient({
   const [selectedVariantRecordId, setSelectedVariantRecordId] = useState<string | null>(
     productVariants[0]?.id ?? null
   );
-  const [qty, setQty] = useState(1);
+  const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
+  
+  const currentKey = selectedVariantRecordId || "default";
+  const qty = qtyMap[currentKey] || 1;
+  const setQty = (val: number | ((q: number) => number)) => {
+    setQtyMap(prev => {
+       const current = prev[currentKey] || 1;
+       const next = typeof val === 'function' ? val(current) : val;
+       return { ...prev, [currentKey]: next };
+    });
+  };
   const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    setMsg("");
+  }, [selectedVariantRecordId]);
 
   const activeVariant = useMemo(
     () => productVariants.find((pv) => pv.id === selectedVariantRecordId),
@@ -85,8 +99,7 @@ export default function ProductPurchaseClient({
     const lid = lineId(productId, selectedVariantRecordId);
     const cart = readCart();
     const idx = cart.findIndex((r: any) => r.lineId === lid);
-    if (idx >= 0) cart[idx].quantity += take;
-    else {
+    if (idx < 0) {
       cart.push({
         lineId: lid,
         productId,
@@ -96,7 +109,15 @@ export default function ProductPurchaseClient({
         variantId: selectedVariantRecordId,
         variantLabel,
         imageUrl: heroUrl,
+        maxStock,
       });
+    } else {
+      if (cart[idx].quantity + take > maxStock) {
+        setMsg(`Limit reached. Only ৳{maxStock} in stock.`);
+        return;
+      }
+      cart[idx].quantity += take;
+      cart[idx].maxStock = maxStock;
     }
     persistCart(cart);
     setMsg(goCheckout ? "Added — opening checkout…" : "Added to cart.");
@@ -119,7 +140,7 @@ export default function ProductPurchaseClient({
             <button
               key={idx}
               onClick={() => setSelectedImgIdx(idx)}
-              className={`h-20 w-20 flex-shrink-0 rounded-2xl border-2 transition-all ${
+              className={`h-20 w-20 flex-shrink-0 rounded-2xl border-2 transition-all ৳{
                 selectedImgIdx === idx ? "border-orange-500 scale-105" : "border-transparent opacity-60"
               }`}
             >
@@ -137,9 +158,14 @@ export default function ProductPurchaseClient({
         </div>
 
         <div className="flex items-baseline gap-4">
-          <span className="text-4xl font-black text-orange-600">${effectivePrice.toFixed(2)}</span>
+          <span className="text-4xl font-black text-orange-600">৳{effectivePrice.toFixed(2)}</span>
           {displayOfferPrice != null && displayOfferPrice < displayPrice && (
-            <span className="text-xl text-slate-400 line-through font-bold">${displayPrice.toFixed(2)}</span>
+            <>
+              <span className="text-xl text-slate-400 line-through font-bold">৳{displayPrice.toFixed(2)}</span>
+              <span className="text-sm font-black text-red-500 bg-red-50 px-2 py-1 rounded-lg">
+                {Math.round(((displayPrice - displayOfferPrice) / displayPrice) * 100)}% OFF
+              </span>
+            </>
           )}
         </div>
 
@@ -151,7 +177,7 @@ export default function ProductPurchaseClient({
                 <button
                   key={pv.id}
                   onClick={() => setSelectedVariantRecordId(pv.id)}
-                  className={`rounded-2xl border px-6 py-3 text-sm font-bold transition-all ${
+                  className={`rounded-2xl border px-6 py-3 text-sm font-bold transition-all ৳{
                     selectedVariantRecordId === pv.id
                       ? "border-orange-600 bg-orange-50 text-orange-600 ring-2 ring-orange-500/10"
                       : "border-slate-200 bg-white text-slate-700 hover:border-orange-300"
@@ -173,7 +199,7 @@ export default function ProductPurchaseClient({
             >
               −
             </button>
-            <span className="min-w-[2rem] text-center font-bold text-slate-900">{qty}</span>
+            <span className="min-w-[2rem] text-center font-bold text-slate-900">{Math.min(qty, maxStock)}</span>
             <button
               type="button"
               className="px-5 py-3 text-xl font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition"
@@ -192,17 +218,17 @@ export default function ProductPurchaseClient({
             type="button"
             disabled={maxStock <= 0}
             onClick={() => addToCart(false)}
-            className="flex-1 rounded-[20px] bg-slate-900 py-4 font-black text-white shadow-xl hover:bg-slate-800 transition-all disabled:opacity-40"
+            className="flex-1 rounded-[20px] bg-slate-900 py-4 font-black text-white shadow-xl hover:bg-slate-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Add to Bag
+            {maxStock <= 0 ? "Out of Stock" : "Add to Bag"}
           </button>
           <button
             type="button"
             disabled={maxStock <= 0}
             onClick={() => addToCart(true)}
-            className="flex-1 rounded-[20px] bg-gradient-to-r from-orange-500 to-amber-500 py-4 font-black text-white shadow-xl hover:opacity-90 hover:scale-[1.02] transition-all disabled:opacity-40"
+            className="flex-1 rounded-[20px] bg-gradient-to-r from-orange-500 to-amber-500 py-4 font-black text-white shadow-xl hover:opacity-90 hover:scale-[1.02] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Express Checkout
+            {maxStock <= 0 ? "Wait for Restock" : "Express Checkout"}
           </button>
         </div>
         

@@ -11,7 +11,8 @@ const links = [
   { href: "/admin/posters", label: "Posters", icon: "▨" },
   { href: "/admin/complaints", label: "Complaints", icon: "☏" },
   { href: "/admin/low-stock", label: "Low stock", icon: "!" },
-  { href: "/admin/shipping", label: "Shipping", icon: "✈" }
+  { href: "/admin/shipping", label: "Shipping", icon: "✈" },
+  { href: "/admin/settings", label: "Settings", icon: "⚙" }
 ];
 
 export default function AdminSidebar() {
@@ -23,7 +24,7 @@ export default function AdminSidebar() {
         </span>
         <div>
           <p className="text-sm font-bold text-slate-900">Admin</p>
-          <p className="hidden text-[10px] uppercase tracking-wide text-slate-400 lg:block">ShopMart</p>
+          <p className="hidden text-[10px] uppercase tracking-wide text-slate-400 lg:block">AshBazar</p>
         </div>
       </div>
       <nav className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible lg:p-3">

@@ -35,6 +35,13 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
     }
   });
 
+  if (body.quantity !== undefined) {
+    await prisma.productVariant.updateMany({
+      where: { productId: id },
+      data: { stock: Number(body.quantity) }
+    });
+  }
+
   return apiSuccess("Product updated successfully.", null);
 }
 

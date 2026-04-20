@@ -43,7 +43,7 @@ export function ProductsDataTable({
       header: 'Price',
       cell: ({ row }) => {
         const price = row.getValue('price') as number;
-        return `$${price.toFixed(2)}`;
+        return `৳${price.toFixed(2)}`;
       },
     },
     {
@@ -62,7 +62,7 @@ export function ProductsDataTable({
         };
         return (
           <span
-            className={`rounded-full px-2 py-1 text-xs font-medium ${statusStyles[value as keyof typeof statusStyles]}`}
+            className={`rounded-full px-2 py-1 text-xs font-medium ৳{statusStyles[value as keyof typeof statusStyles]}`}
           >
             {value}
           </span>

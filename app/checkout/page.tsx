@@ -50,7 +50,18 @@ export default function CheckoutPage() {
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
   
-  const deliveryCharge = summary?.deliveryCharge ?? 50;
+  const [deliveryCharges, setDeliveryCharges] = useState<any[]>([]);
+  useEffect(() => {
+    fetch("/api/delivery-charges").then(r => r.json()).then(res => {
+      if (res.success) setDeliveryCharges(res.data);
+    });
+  }, []);
+
+  const deliveryCharge = useMemo(() => {
+    if (!deliveryCharges.length) return summary?.deliveryCharge ?? 50;
+    const match = deliveryCharges.find(d => d.location.toLowerCase() === city.trim().toLowerCase());
+    return match ? match.charge : 50;
+  }, [deliveryCharges, city, summary]);
 
   async function applyCoupon() {
     setCouponError("");
@@ -205,15 +216,21 @@ export default function CheckoutPage() {
 
           {/* ORDER SUMMARY */}
           <div className="rounded-[40px] bg-white p-10 shadow-2xl border border-slate-100 self-start">
-            <h2 className="text-xl font-black text-slate-900 mb-8">Summary</h2>
+            <div className="flex items-center justify-between mb-8">
+               <h2 className="text-xl font-black text-slate-900">Summary</h2>
+               <Link href="/cart" className="text-xs font-bold text-orange-600 hover:underline">Edit Bag</Link>
+            </div>
             <div className="space-y-5 mb-10">
               {items.map((i) => (
                 <div key={i.lineId} className="flex justify-between items-start gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-900 line-clamp-1">{i.name}</p>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Qty: {i.quantity} {i.variantLabel ? `· ${i.variantLabel}` : ""}</p>
+                    <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">
+                       {i.variantLabel && <span className="mr-2 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">Style: {i.variantLabel}</span>}
+                       Qty: <span className="font-black text-slate-700">{i.quantity}</span> <span className="mx-1">×</span> ৳{i.price.toFixed(2)}
+                    </p>
                   </div>
-                  <p className="text-sm font-black text-slate-900">${(i.price * i.quantity).toFixed(2)}</p>
+                  <p className="text-sm font-black text-slate-900">৳{(i.price * i.quantity).toFixed(2)}</p>
                 </div>
               ))}
             </div>
@@ -221,21 +238,21 @@ export default function CheckoutPage() {
             <div className="space-y-4 pt-8 border-t border-slate-100 font-bold text-sm">
               <div className="flex justify-between text-slate-400">
                 <span>Subtotal</span>
-                <span className="text-slate-900">${subtotal.toFixed(2)}</span>
+                <span className="text-slate-900">৳{subtotal.toFixed(2)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-600">
                   <span>Applied Discount</span>
-                  <span>-${discountAmount.toFixed(2)}</span>
+                  <span>-৳{discountAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-slate-400">
                 <span>Delivery</span>
-                <span className="text-slate-900">${deliveryCharge.toFixed(2)}</span>
+                <span className="text-slate-900">৳{deliveryCharge.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-3xl font-black pt-6">
                 <span>Total</span>
-                <span className="text-orange-600">${finalTotal.toFixed(2)}</span>
+                <span className="text-orange-600">৳{finalTotal.toFixed(2)}</span>
               </div>
             </div>
 

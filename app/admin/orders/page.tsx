@@ -84,11 +84,11 @@ export default function AdminOrdersPage() {
                   <p className="text-xs text-slate-500">{o.phone}</p>
                 </td>
                 <td className="px-6 py-5 font-black text-slate-900">
-                   ${(o.total ?? o.totalPrice).toFixed(2)}
+                   ৳{(o.total ?? o.totalPrice).toFixed(2)}
                 </td>
                 <td className="px-6 py-5">
                   <select
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-bold outline-none ring-orange-500/20 focus:ring-4 ${
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-bold outline-none ring-orange-500/20 focus:ring-4 ৳{
                       o.orderStatus === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
                       o.orderStatus === 'pending' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-white text-slate-700 border-slate-200'
                     }`}

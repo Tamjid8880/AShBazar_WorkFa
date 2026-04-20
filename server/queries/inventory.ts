@@ -1,5 +1,5 @@
 // server/queries/inventory.ts
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { createCachedFunction, CACHE_TAGS } from '@/lib/cache';
 import { hasPermission, PERMISSIONS } from '@/lib/roles';
 

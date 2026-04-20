@@ -149,6 +149,8 @@ model User {
   phone     String?
   address   String?
   password  String
+  roleId    String?
+  role      Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
   orders    Order[]
   reviews   Review[]
   complaints Complaint[]
@@ -195,10 +197,45 @@ model Order {
   deliveryCharge Float?
   total         Float?
   trackingUrl   String?
+  adminNotes    String?       @db.Text
   user          User          @relation(fields: [userID], references: [id], onDelete: Restrict)
   couponCode    CouponCode?   @relation(fields: [couponCodeId], references: [id], onDelete: SetNull)
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   @db.Text
+  targetId    String?  // e.g. order Id
+  targetType  String?  // e.g. 'Order', 'Invoice'
+  performedBy String   // admin name/email
+  createdAt   DateTime @default(now())
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // "customer", "admin", "super_admin"
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime @default(now())
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // "manage_users", "manage_orders", etc
+  group       String   @default("general") // "products", "orders", "users", etc
+  roles       RolePermission[]
+  createdAt   DateTime @default(now())
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
 }
 
 model OrderItem {

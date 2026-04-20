@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { firstProductImageUrl } from "@/lib/product-images";
+import PermissionGuard from "@/components/permission-guard";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type Variant = { id: string; name: string };
 type VariantType = { id: string; name: string; type: string; variants: Variant[] };
@@ -192,14 +194,20 @@ export default function AdminProductsPage() {
     const matchSearch = p.name.toLowerCase().includes(filterSearch.toLowerCase());
     const matchStatus =
       filterStatus === "all" ? true :
-      filterStatus === "instock" ? p.quantity > 0 && !p.isHidden :
-      filterStatus === "outofstock" ? p.quantity <= 0 :
-      filterStatus === "hidden" ? p.isHidden : true;
+        filterStatus === "instock" ? p.quantity > 0 && !p.isHidden :
+          filterStatus === "outofstock" ? p.quantity <= 0 :
+            filterStatus === "hidden" ? p.isHidden : true;
     return matchSearch && matchStatus;
   });
 
   const outOfStockCount = products.filter(p => p.quantity <= 0).length;
   const hiddenCount = products.filter(p => p.isHidden).length;
+
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("create_products");
+  const canEdit = hasPermission("edit_products");
+  const canDelete = hasPermission("delete_products"); // we didn't add this explicitly, but let's say canEdit means also delete or check it
+  const canManageCategories = hasPermission("manage_categories");
 
   return (
     <div className="space-y-10 pb-20">
@@ -224,121 +232,129 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* ADD PRODUCT FORM */}
+      {/* ADD PRODUCT & SETUP ROW */}
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="space-y-6 rounded-[40px] border border-slate-100 bg-white p-10 shadow-sm">
-            <h2 className="text-xl font-black text-slate-900">Add New Product</h2>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Product Name</label>
-                <input className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" placeholder="e.g. Pure Mustard Oil" value={name} onChange={(e) => setName(e.target.value)} required />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Description</label>
-                <textarea className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Price (৳)</label>
-                <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={price} onChange={(e) => setPrice(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Offer Price (৳)</label>
-                <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stock (Units)</label>
-                <input type="number" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Weight (kg)</label>
-                <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={weight} onChange={(e) => setWeight(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</label>
-                <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
-                  <option value="">Select Category</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sub Category</label>
-                <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={subCategoryId} onChange={(e) => setSubCategoryId(e.target.value)} required>
-                  <option value="">Select SubCat</option>
-                  {subCategories.filter((sc) => sc.categoryId === categoryId).map((sc) => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                </select>
-              </div>
-              {/* Images */}
-              <div className="md:col-span-2 space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Product Images</label>
-                <div className="grid grid-cols-5 gap-3">
-                  {uploadedUrls.map((url, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200">
-                      <img src={url} alt="" className="h-full w-full object-cover" />
-                      <button type="button" onClick={() => removeUploadedImage(i)} className="absolute top-1 right-1 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]">✕</button>
-                    </div>
-                  ))}
-                  {uploadedUrls.length < 5 && (
-                    <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
-                      <span className="text-2xl text-slate-300 font-bold">+</span>
-                      <span className="text-[8px] font-black text-slate-400">UPLOAD</span>
-                      <input type="file" multiple className="hidden" onChange={handleFileUpload} accept="image/*" disabled={uploading} />
-                    </label>
-                  )}
+          {canCreate ? (
+            <form onSubmit={handleSubmit} className="space-y-6 rounded-[40px] border border-slate-100 bg-white p-10 shadow-sm">
+              <h2 className="text-xl font-black text-slate-900">Add New Product</h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Product Name</label>
+                  <input className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" placeholder="e.g. Pure Mustard Oil" value={name} onChange={(e) => setName(e.target.value)} required />
                 </div>
-                {uploading && <p className="text-[10px] font-bold text-orange-600 animate-pulse">Uploading images...</p>}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Description</label>
+                  <textarea className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Price (৳)</label>
+                  <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={price} onChange={(e) => setPrice(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Offer Price (৳)</label>
+                  <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stock (Units)</label>
+                  <input type="number" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Weight (kg)</label>
+                  <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</label>
+                  <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+                    <option value="">Select Category</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sub Category</label>
+                  <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={subCategoryId} onChange={(e) => setSubCategoryId(e.target.value)} required>
+                    <option value="">Select SubCat</option>
+                    {subCategories.filter((sc) => sc.categoryId === categoryId).map((sc) => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                  </select>
+                </div>
+                {/* Images */}
+                <div className="md:col-span-2 space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Product Images</label>
+                  <div className="grid grid-cols-5 gap-3">
+                    {uploadedUrls.map((url, i) => (
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200">
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        <button type="button" onClick={() => removeUploadedImage(i)} className="absolute top-1 right-1 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]">✕</button>
+                      </div>
+                    ))}
+                    {uploadedUrls.length < 5 && (
+                      <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
+                        <span className="text-2xl text-slate-300 font-bold">+</span>
+                        <span className="text-[8px] font-black text-slate-400">UPLOAD</span>
+                        <input type="file" multiple className="hidden" onChange={handleFileUpload} accept="image/*" disabled={uploading} />
+                      </label>
+                    )}
+                  </div>
+                  {uploading && <p className="text-[10px] font-bold text-orange-600 animate-pulse">Uploading images...</p>}
+                </div>
+                {/* Promotions */}
+                <div className="md:col-span-2 flex gap-8 py-4 border-y border-slate-50">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={isHotDeal} onChange={e => setIsHotDeal(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-orange-600" />
+                    <span className="text-sm font-black text-slate-900 uppercase">🔥 HOT DEAL</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={isSpecialOffer} onChange={e => setIsSpecialOffer(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-orange-600" />
+                    <span className="text-sm font-black text-slate-900 uppercase">🌟 SPECIAL OFFER</span>
+                  </label>
+                </div>
               </div>
-              {/* Promotions */}
-              <div className="md:col-span-2 flex gap-8 py-4 border-y border-slate-50">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={isHotDeal} onChange={e => setIsHotDeal(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-orange-600" />
-                  <span className="text-sm font-black text-slate-900 uppercase">🔥 HOT DEAL</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={isSpecialOffer} onChange={e => setIsSpecialOffer(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-orange-600" />
-                  <span className="text-sm font-black text-slate-900 uppercase">🌟 SPECIAL OFFER</span>
-                </label>
-              </div>
+              <button type="submit" disabled={uploading} className="w-full rounded-3xl bg-slate-900 py-5 font-black text-white shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-50">
+                ADD PRODUCT
+              </button>
+            </form>
+          ) : (
+            <div className="rounded-[40px] border-2 border-dashed border-slate-200 bg-slate-50 p-10 flex items-center justify-center text-center">
+               <p className="font-bold text-slate-500">You do not have permission to create products.</p>
             </div>
-            <button type="submit" disabled={uploading} className="w-full rounded-3xl bg-slate-900 py-5 font-black text-white shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-50">
-              ADD PRODUCT
-            </button>
-          </form>
+          )}
         </div>
 
         {/* SIDEBAR */}
         <div className="space-y-6">
-          <div className="rounded-[40px] border border-slate-100 bg-white p-8 shadow-sm">
-            <h2 className="text-xl font-black text-slate-900">Quick Setup</h2>
-            <div className="mt-6 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400">Add Category</label>
-                <div className="flex gap-2">
-                  <input className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold" placeholder="Name" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} />
-                  <button onClick={quickAddCategory} className="bg-orange-600 text-white px-4 rounded-xl font-black text-xs hover:bg-orange-700 transition-all">+</button>
+          {canManageCategories && (
+            <div className="rounded-[40px] border border-slate-100 bg-white p-8 shadow-sm">
+              <h2 className="text-xl font-black text-slate-900">Quick Setup</h2>
+              <div className="mt-6 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Add Category</label>
+                  <div className="flex gap-2">
+                    <input className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold" placeholder="Name" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} />
+                    <button onClick={quickAddCategory} className="bg-orange-600 text-white px-4 rounded-xl font-black text-xs hover:bg-orange-700 transition-all">+</button>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400">Add Variant</label>
-                <div className="flex gap-2">
-                  <select className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold" value={variantTypeId} onChange={(e) => setVariantTypeId(e.target.value)}>
-                    <option value="">Select Group</option>
-                    {variantTypes.map((vt) => <option key={vt.id} value={vt.id}>{vt.name}</option>)}
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <input className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold" placeholder="Label (e.g. 5kg)" value={newVarName} onChange={(e) => setNewVarName(e.target.value)} disabled={!variantTypeId} />
-                  <button onClick={quickAddVariant} disabled={!variantTypeId} className="bg-slate-900 text-white px-4 rounded-xl font-black text-xs hover:bg-slate-800 transition-all disabled:opacity-50">+</button>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Add Variant</label>
+                  <div className="flex gap-2">
+                    <select className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold" value={variantTypeId} onChange={(e) => setVariantTypeId(e.target.value)}>
+                      <option value="">Select Group</option>
+                      {variantTypes.map((vt) => <option key={vt.id} value={vt.id}>{vt.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <input className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold" placeholder="Label (e.g. 5kg)" value={newVarName} onChange={(e) => setNewVarName(e.target.value)} disabled={!variantTypeId} />
+                    <button onClick={quickAddVariant} disabled={!variantTypeId} className="bg-slate-900 text-white px-4 rounded-xl font-black text-xs hover:bg-slate-800 transition-all disabled:opacity-50">+</button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* INVENTORY */}
       <div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 mt-10">
           <h2 className="text-3xl font-black text-slate-900">Shop Inventory</h2>
           <div className="flex gap-2 flex-wrap">
             <input className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/30" placeholder="Search products..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} />
@@ -384,16 +400,18 @@ export default function AdminProductsPage() {
                   </div>
 
                   {/* Action row */}
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button onClick={() => openEdit(p)} className="col-span-2 bg-slate-900 text-white rounded-xl py-2 text-xs font-black hover:bg-slate-700 transition">✏️ EDIT</button>
-                    <button onClick={() => { setRestockProduct(p); setRestockAmount("0"); }} className="bg-emerald-600 text-white rounded-xl py-2 text-xs font-black hover:bg-emerald-700 transition">📦 RESTOCK</button>
-                    <button onClick={() => quickToggle(p.id, "isHidden", p.isHidden)} className={`rounded-xl py-2 text-xs font-black transition ${p.isHidden ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
-                      {p.isHidden ? "👁 SHOW" : "🙈 HIDE"}
-                    </button>
-                    <button onClick={() => quickToggle(p.id, "isHotDeal", p.isHotDeal)} className={`rounded-xl py-2 text-xs font-black transition ${p.isHotDeal ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600 hover:bg-orange-100"}`}>🔥 HOT</button>
-                    <button onClick={() => quickToggle(p.id, "isSpecialOffer", p.isSpecialOffer)} className={`rounded-xl py-2 text-xs font-black transition ${p.isSpecialOffer ? "bg-blue-500 text-white" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}>⭐ SPECIAL</button>
-                    <button onClick={() => deleteProduct(p.id)} className="col-span-2 bg-red-50 text-red-600 rounded-xl py-2 text-xs font-black hover:bg-red-100 transition">🗑 DELETE</button>
-                  </div>
+                  {canEdit && (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button onClick={() => openEdit(p)} className="col-span-2 bg-slate-900 text-white rounded-xl py-2 text-xs font-black hover:bg-slate-700 transition">✏️ EDIT</button>
+                      <button onClick={() => { setRestockProduct(p); setRestockAmount("0"); }} className="bg-emerald-600 text-white rounded-xl py-2 text-xs font-black hover:bg-emerald-700 transition">📦 RESTOCK</button>
+                      <button onClick={() => quickToggle(p.id, "isHidden", p.isHidden)} className={`rounded-xl py-2 text-xs font-black transition ${p.isHidden ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
+                        {p.isHidden ? "👁 SHOW" : "🙈 HIDE"}
+                      </button>
+                      <button onClick={() => quickToggle(p.id, "isHotDeal", p.isHotDeal)} className={`rounded-xl py-2 text-xs font-black transition ${p.isHotDeal ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600 hover:bg-orange-100"}`}>🔥 HOT</button>
+                      <button onClick={() => quickToggle(p.id, "isSpecialOffer", p.isSpecialOffer)} className={`rounded-xl py-2 text-xs font-black transition ${p.isSpecialOffer ? "bg-blue-500 text-white" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}>⭐ SPECIAL</button>
+                      <button onClick={() => deleteProduct(p.id)} className="col-span-2 bg-red-50 text-red-600 rounded-xl py-2 text-xs font-black hover:bg-red-100 transition">🗑 DELETE</button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -481,6 +499,6 @@ export default function AdminProductsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PermissionGuard>
   );
 }

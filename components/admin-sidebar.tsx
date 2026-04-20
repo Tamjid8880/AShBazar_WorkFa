@@ -1,21 +1,50 @@
-import Link from "next/link";
+"use client";
 
-const links = [
-  { href: "/admin", label: "Dashboard", icon: "▣" },
-  { href: "/admin/orders", label: "Orders", icon: "◎" },
-  { href: "/admin/products", label: "Products", icon: "◇" },
-  { href: "/admin/categories", label: "Categories", icon: "▤" },
-  { href: "/admin/brands", label: "Brands", icon: "◆" },
-  { href: "/admin/variants", label: "Variants", icon: "○" },
-  { href: "/admin/coupons", label: "Coupons", icon: "%" },
-  { href: "/admin/posters", label: "Posters", icon: "▨" },
-  { href: "/admin/complaints", label: "Complaints", icon: "☏" },
-  { href: "/admin/low-stock", label: "Low stock", icon: "!" },
-  { href: "/admin/shipping", label: "Shipping", icon: "✈" },
-  { href: "/admin/settings", label: "Settings", icon: "⚙" }
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { useEffect, useState } from "react";
+
+// Map sidebar items to required permissions
+const allLinks = [
+  { href: "/admin", label: "Dashboard", icon: "▣", perm: "view_dashboard" },
+  { href: "/admin/orders", label: "Orders", icon: "◎", perm: "view_orders" },
+  { href: "/admin/products", label: "Products", icon: "◇", perm: "view_products" },
+  { href: "/admin/categories", label: "Categories", icon: "▤", perm: "view_categories" },
+  { href: "/admin/brands", label: "Brands", icon: "◆", perm: "view_products" },
+  { href: "/admin/variants", label: "Variants", icon: "○", perm: "view_products" },
+  { href: "/admin/coupons", label: "Coupons", icon: "%", perm: "manage_coupons" },
+  { href: "/admin/posters", label: "Posters", icon: "▨", perm: "manage_posters" },
+  { href: "/admin/complaints", label: "Complaints", icon: "☏", perm: "manage_complaints" },
+  { href: "/admin/low-stock", label: "Low stock", icon: "!", perm: "view_products" },
+  { href: "/admin/shipping", label: "Shipping", icon: "✈", perm: "manage_shipping" },
+  { href: "/admin/users", label: "Users & Roles", icon: "👤", perm: "view_users" },
+  { href: "/admin/roles", label: "Permissions", icon: "🔑", perm: "assign_roles" },
+  { href: "/admin/audit-logs", label: "History", icon: "📋", perm: "view_audit_logs" },
+  { href: "/admin/settings", label: "Settings", icon: "⚙", perm: "manage_settings" }
 ];
 
 export default function AdminSidebar() {
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role || "unknown";
+  const isSuperAdmin = role === "super_admin";
+
+  const [userPerms, setUserPerms] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch the logged-in user's permissions
+    fetch("/api/admin/my-permissions")
+      .then(r => r.json())
+      .then(data => {
+        if (data.permissions) setUserPerms(data.permissions);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Super admin sees everything. Others see only permitted links.
+  const visibleLinks = isSuperAdmin
+    ? allLinks
+    : allLinks.filter(l => userPerms.includes(l.perm));
+
   return (
     <aside className="border-b border-slate-200/80 bg-white lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r">
       <div className="flex h-14 items-center gap-2 border-b border-slate-100 px-4 lg:h-16 lg:px-5">
@@ -23,12 +52,14 @@ export default function AdminSidebar() {
           A
         </span>
         <div>
-          <p className="text-sm font-bold text-slate-900">Admin</p>
-          <p className="hidden text-[10px] uppercase tracking-wide text-slate-400 lg:block">AshBazar</p>
+          <p className="text-sm font-bold text-slate-900">{session?.user?.name || "Admin"}</p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 lg:block">
+            {role === "super_admin" ? "🔴 SUPER ADMIN" : role === "admin" ? "🟠 ADMIN" : role}
+          </p>
         </div>
       </div>
       <nav className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible lg:p-3">
-        {links.map((l) => (
+        {visibleLinks.map((l) => (
           <Link
             key={l.href}
             href={l.href}
@@ -39,10 +70,16 @@ export default function AdminSidebar() {
           </Link>
         ))}
       </nav>
-      <div className="hidden border-t border-slate-100 p-4 lg:block">
-        <Link href="/shop" className="text-xs font-medium text-slate-500 hover:text-orange-600">
+      <div className="hidden border-t border-slate-100 p-4 lg:block space-y-2">
+        <Link href="/shop" className="block text-xs font-medium text-slate-500 hover:text-orange-600">
           ← Storefront
         </Link>
+        <button
+          onClick={() => signOut({ callbackUrl: "/admin/login" })}
+          className="w-full rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition"
+        >
+          Sign Out
+        </button>
       </div>
     </aside>
   );

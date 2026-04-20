@@ -1,33 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { FormEvent, useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const error = searchParams.get("error");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const res = await fetch("/api/users/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, password })
-    });
-    const data = await res.json();
+    setLoading(true);
+    setMessage("");
 
-    if (data.success) {
-      localStorage.setItem("auth_user", JSON.stringify(data.data));
+    const res = await signIn("credentials", {
+      email,
+      password,
+      redirect: false
+    });
+
+    if (res?.ok) {
       setMessage("Login successful. Redirecting...");
+      // Also store minimal info in localStorage for legacy compatibility
+      localStorage.setItem("auth_user", JSON.stringify({ email }));
       setTimeout(() => {
         router.push("/shop");
-      }, 1000);
+        router.refresh();
+      }, 500);
     } else {
-      setMessage(data.message ?? "Login failed.");
+      setMessage("Invalid email or password.");
     }
+    setLoading(false);
   }
 
   return (
@@ -35,12 +45,20 @@ export default function LoginPage() {
       <section className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
         <p className="mt-1 text-sm text-slate-600">Sign in to place orders and track purchases.</p>
+
+        {error === "AccessDenied" && (
+          <div className="mt-4 rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-600">
+            Access Denied: You need an Admin or Super Admin account to access the admin panel.
+          </div>
+        )}
+
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <input
             className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2"
-            placeholder="Username"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
           <input
@@ -51,8 +69,12 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <button type="submit" className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800">
-            Login
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {loading ? "Signing in..." : "Login"}
           </button>
         </form>
         <p className="mt-4 text-sm text-slate-600">{message}</p>

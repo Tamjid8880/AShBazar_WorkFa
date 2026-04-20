@@ -1,6 +1,6 @@
 // server/queries/users.ts
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export async function getUserById(userId: string) {
   try {

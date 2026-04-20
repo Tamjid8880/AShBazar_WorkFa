@@ -1,5 +1,5 @@
 // server/queries/orders.ts
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { createCachedFunction, CACHE_TAGS } from '@/lib/cache';
 import { getCurrentUser } from '@/lib/roles';
 import { hasPermission, PERMISSIONS } from '@/lib/roles';

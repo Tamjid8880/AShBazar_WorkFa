@@ -1,6 +1,7 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import type { OrderStatus } from "@prisma/client";
+import { hasServerPermission } from "@/lib/permissions";
 
 const ORDER_STATUSES: OrderStatus[] = [
   "pending",
@@ -25,6 +26,10 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 }
 
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
+  if (!(await hasServerPermission("manage_orders"))) {
+    return apiError("Unauthorized: Missing 'manage_orders' permission.", 403);
+  }
+
   const { id } = await context.params;
   const body = await req.json();
   const { orderStatus, trackingUrl } = body;
@@ -119,6 +124,20 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
 
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  await prisma.order.delete({ where: { id } });
-  return apiSuccess("Order deleted successfully.", null);
+  
+  // Log the deletion attempt before throwing error
+  try {
+    await prisma.auditLog.create({
+      data: {
+        action: `Attempted to delete order ${id}. Access Denied.`,
+        targetId: id,
+        targetType: "ORDER_DELETE",
+        performedBy: "Admin" // TODO: Connect to secure session
+      }
+    });
+  } catch (e) {
+    console.error("Audit log failed", e);
+  }
+
+  return apiError("Action Denied: No one is authorized to delete invoices.", 403);
 }

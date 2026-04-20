@@ -1,5 +1,6 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
+import { hasServerPermission } from "@/lib/permissions";
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -12,6 +13,10 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 }
 
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
+  if (!(await hasServerPermission("edit_products"))) {
+    return apiError("Unauthorized: Missing 'edit_products' permission.", 403);
+  }
+
   const { id } = await context.params;
   const body = await req.json();
 
@@ -46,6 +51,10 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
 }
 
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
+  if (!(await hasServerPermission("edit_products"))) {
+    return apiError("Unauthorized: Missing 'edit_products' permission.", 403);
+  }
+  
   const { id } = await context.params;
   await prisma.product.delete({ where: { id } });
   return apiSuccess("Product deleted successfully.", null);

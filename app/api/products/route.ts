@@ -1,5 +1,6 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
+import { hasServerPermission } from "@/lib/permissions";
 
 export async function GET() {
   const products = await prisma.product.findMany({
@@ -10,6 +11,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (!(await hasServerPermission("create_products"))) {
+    return apiError("Unauthorized: Missing 'create_products' permission.", 403);
+  }
+
   const body = await req.json();
   const required = ["name", "quantity", "price", "proCategoryId", "proSubCategoryId"];
   if (required.some((key) => body[key] === undefined || body[key] === null || body[key] === "")) {

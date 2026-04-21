@@ -72,6 +72,22 @@ export default function RolesPermissionsPage() {
     setSeeding(false);
   }
 
+  async function createRole(name: string) {
+    const res = await fetch("/api/admin/roles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await load();
+      setSelectedRoleId(data.role.id);
+      setAssignedPermIds([]);
+    } else {
+      alert(data.error || "Failed to create role");
+    }
+  }
+
   // Group permissions by their group field
   const grouped = permissions.reduce((acc: Record<string, any[]>, p: any) => {
     const g = p.group || "general";
@@ -92,15 +108,28 @@ export default function RolesPermissionsPage() {
           <h1 className="text-3xl font-black text-slate-900">Roles & Permissions</h1>
           <p className="text-slate-500 font-medium">Control what each role can access across the system.</p>
         </div>
-        {permissions.length === 0 && (
-          <button
-            onClick={seedPermissions}
-            disabled={seeding}
-            className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-emerald-700 active:scale-95 transition"
-          >
-            {seeding ? "Seeding..." : "Initialize Permissions"}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {isSuperAdmin && permissions.length > 0 && (
+            <button
+              onClick={() => {
+                const name = prompt("Enter new role name (e.g. Sales Manager, Call Center):");
+                if (name) createRole(name);
+              }}
+              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-slate-800 active:scale-95 transition"
+            >
+              + CREATE ROLE
+            </button>
+          )}
+          {permissions.length === 0 && (
+            <button
+              onClick={seedPermissions}
+              disabled={seeding}
+              className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-emerald-700 active:scale-95 transition"
+            >
+              {seeding ? "Seeding..." : "Initialize Permissions"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">

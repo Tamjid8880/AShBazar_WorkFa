@@ -71,6 +71,7 @@ type Order = {
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const { hasPermission } = usePermissions();
 
   const canEditOrders = hasPermission("edit_orders");
@@ -97,6 +98,11 @@ export default function AdminOrdersPage() {
     load();
   }
 
+  const filteredOrders = orders.filter(o => {
+    if (statusFilter !== "all" && o.orderStatus !== statusFilter) return false;
+    return true;
+  });
+
   return (
     <PermissionGuard permission="view_orders">
       <div className="space-y-8 relative pb-20">
@@ -117,6 +123,24 @@ export default function AdminOrdersPage() {
           )}
         </div>
 
+        <div className="flex bg-white border border-slate-200 rounded-2xl p-2 gap-2 overflow-x-auto shadow-sm">
+          <button 
+            onClick={() => setStatusFilter("all")}
+            className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${statusFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            All Orders
+          </button>
+          {STATUS_OPTIONS.map(s => (
+            <button 
+              key={s.value}
+              onClick={() => setStatusFilter(s.value)}
+              className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${statusFilter === s.value ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -131,7 +155,7 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {orders.map((o) => (
+              {filteredOrders.map((o) => (
                 <tr key={o.id} className="hover:bg-slate-50/50 transition border-b">
                   <td className="px-6 py-5">
                     <p className="font-black text-slate-900">#{o.id.slice(-6).toUpperCase()}</p>
@@ -185,8 +209,8 @@ export default function AdminOrdersPage() {
               ))}
             </tbody>
           </table>
-          {orders.length === 0 && (
-            <div className="py-20 text-center text-slate-400 font-bold">No orders found.</div>
+          {filteredOrders.length === 0 && (
+            <div className="py-20 text-center text-slate-400 font-bold">No orders found for this status.</div>
           )}
         </div>
       </div>

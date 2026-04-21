@@ -13,19 +13,19 @@ export async function GET() {
     // Super admin gets everything
     if (role === "super_admin") {
       const all = await prisma.permission.findMany();
-      return NextResponse.json({ permissions: all.map(p => p.name) });
+      return NextResponse.json({ success: true, permissions: all.map(p => p.name) });
     }
 
     // Find user's role and its permissions
     const user = await prisma.user.findFirst({
-      where: { email: (session.user as any)?.email },
+      where: { id: (session.user as any)?.id },
       include: { role: { include: { permissions: { include: { permission: true } } } } }
     });
 
-    if (!user?.role) return NextResponse.json({ permissions: [] });
+    if (!user?.role) return NextResponse.json({ success: true, permissions: [] });
 
     const perms = user.role.permissions.map(rp => rp.permission.name);
-    return NextResponse.json({ permissions: perms });
+    return NextResponse.json({ success: true, permissions: perms });
   } catch (e) {
     return NextResponse.json({ permissions: [] });
   }

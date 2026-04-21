@@ -14,7 +14,7 @@ export default withAuth(
 
     // Protect all other /admin routes
     if (path.startsWith("/admin")) {
-      if (!token || (token.role !== "admin" && token.role !== "super_admin")) {
+      if (!token || !token.role || token.role === "customer") {
         return NextResponse.redirect(new URL("/admin/login?error=AccessDenied", req.url));
       }
     }

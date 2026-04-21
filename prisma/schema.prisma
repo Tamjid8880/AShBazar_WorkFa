@@ -59,8 +59,8 @@ model SubCategory {
 model Brand {
   id            String      @id @default(cuid())
   name          String
-  subcategoryId String
-  subCategory   SubCategory @relation(fields: [subcategoryId], references: [id], onDelete: Restrict)
+  subcategoryId String?
+  subCategory   SubCategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
   products      Product[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

@@ -250,15 +250,25 @@ export default function EditOrderPage() {
                    />
                    {products.length > 0 && showOptions && (
                      <div className="absolute top-10 left-0 w-full bg-white border shadow-lg rounded-lg max-h-40 overflow-y-auto z-50">
-                       {products.map(p => (
+                       {products.map(p => {
+                         const outOfStock = p.quantity <= 0;
+                         return (
                          <div 
                            key={p.id} 
-                           onClick={() => selectProduct(p)}
-                           className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer font-bold border-b last:border-0"
+                           onClick={() => {
+                             if (outOfStock) {
+                               alert("This product is out of stock and cannot be added.");
+                             } else {
+                               selectProduct(p);
+                             }
+                           }}
+                           className={`px-3 py-2 text-sm font-bold border-b last:border-0 ${outOfStock ? "opacity-60 bg-red-50 text-red-700 cursor-not-allowed" : "hover:bg-slate-100 cursor-pointer text-slate-900"}`}
                          >
-                           {p.name} <span className="text-orange-500 float-right">৳{p.price}</span>
+                           {p.name} {outOfStock && <span className="ml-2 text-[10px] uppercase font-black text-white bg-red-500 px-1.5 py-0.5 rounded shadow-sm">Out of Stock</span>}
+                           <span className={`${outOfStock ? 'text-red-500' : 'text-orange-500'} float-right`}>৳{p.price}</span>
                          </div>
-                       ))}
+                         );
+                       })}
                      </div>
                    )}
                  </div>

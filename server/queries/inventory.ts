@@ -54,6 +54,11 @@ export async function getInventoryData(options?: {
               available: true,
             },
           },
+          category: {
+            select: {
+              name: true,
+            },
+          },
           createdAt: true,
           updatedAt: true,
         },
@@ -75,6 +80,7 @@ export async function getInventoryData(options?: {
       return {
         id: product.id,
         name: product.name,
+        category: product.category?.name || 'Uncategorized',
         sku: product.sku || 'N/A',
         quantity: available,
         reorderLevel: 10,

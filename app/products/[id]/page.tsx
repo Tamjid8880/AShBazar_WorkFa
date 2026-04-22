@@ -85,6 +85,7 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
             basePrice={product.price}
             baseOfferPrice={product.offerPrice}
             baseStock={product.quantity}
+            weight={product.weight}
             imagesJson={product.images}
             productVariants={product.variants as any}
           />

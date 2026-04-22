@@ -20,6 +20,7 @@ type Props = {
   basePrice: number;
   baseOfferPrice: number | null;
   baseStock: number;
+  weight: number | null;
   imagesJson: unknown;
   productVariants: ProductVariant[];
 };
@@ -35,6 +36,7 @@ export default function ProductPurchaseClient({
   basePrice,
   baseOfferPrice,
   baseStock,
+  weight,
   imagesJson,
   productVariants,
 }: Props) {
@@ -110,6 +112,7 @@ export default function ProductPurchaseClient({
         variantLabel,
         imageUrl: heroUrl,
         maxStock,
+        weight: weight || 0,
       });
     } else {
       if (cart[idx].quantity + take > maxStock) {

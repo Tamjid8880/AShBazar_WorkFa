@@ -43,9 +43,9 @@ export default function AdminProductsPage() {
   const [offerPrice, setOfferPrice] = useState("");
   const [quantity, setQuantity] = useState("0");
   const [weight, setWeight] = useState("0");
-  const [categoryId, setCategoryId] = useState("");
-  const [subCategoryId, setSubCategoryId] = useState("");
-  const [brandId, setBrandId] = useState("");
+  const [categoryInput, setCategoryInput] = useState("");
+  const [subcategoryInput, setSubcategoryInput] = useState("");
+  const [brandInput, setBrandInput] = useState("");
   const [variantTypeId, setVariantTypeId] = useState("");
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -168,13 +168,21 @@ export default function AdminProductsPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!categoryId || !subCategoryId) { alert("Please select category and subcategory."); return; }
+    if (!categoryInput.trim() || !subcategoryInput.trim()) {
+      alert("Please enter category and subcategory.");
+      return;
+    }
+    if (uploadedUrls.length === 0) {
+      alert("Please upload at least one product image.");
+      return;
+    }
     const payload = {
       name, description: desc, price: Number(price),
       offerPrice: offerPrice ? Number(offerPrice) : null,
       quantity: Number(quantity), weight: Number(weight),
-      proCategoryId: categoryId, proSubCategoryId: subCategoryId,
-      proBrandId: brandId || null,
+      category: categoryInput.trim(),
+      subcategory: subcategoryInput.trim(),
+      brand: brandInput.trim() || undefined,
       proVariantTypeId: variantTypeId || null,
       isHotDeal, isSpecialOffer,
       images: uploadedUrls.map((u) => ({ url: u })),
@@ -184,8 +192,12 @@ export default function AdminProductsPage() {
     if (res.ok) {
       setName(""); setDesc(""); setPrice(""); setOfferPrice("");
       setQuantity("0"); setIsHotDeal(false); setIsSpecialOffer(false);
+      setCategoryInput(""); setSubcategoryInput(""); setBrandInput("");
       setUploadedUrls([]); setSelectedVariants([]);
       loadData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.message || "Failed to create product. Please try again.");
     }
   }
 
@@ -285,67 +297,95 @@ export default function AdminProductsPage() {
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
             {canCreate ? (
-              <form onSubmit={handleSubmit} className="space-y-6 rounded-[40px] border border-slate-100 bg-white p-10 shadow-sm">
-                <h2 className="text-xl font-black text-slate-900">Add New Product</h2>
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="md:col-span-2 space-y-2">
+              <form onSubmit={handleSubmit} className="space-y-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-black text-slate-900">Add New Product</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Product Name</label>
-                    <input className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" placeholder="e.g. Pure Mustard Oil" value={name} onChange={(e) => setName(e.target.value)} required />
+                    <input className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="e.g. Pure Mustard Oil" value={name} onChange={(e) => setName(e.target.value)} required />
                   </div>
-                  <div className="md:col-span-2 space-y-2">
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Description</label>
-                    <textarea className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} />
+                    <textarea className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" rows={2} value={desc} onChange={(e) => setDesc(e.target.value)} />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Price (৳)</label>
-                    <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={price} onChange={(e) => setPrice(e.target.value)} required />
+                    <input type="number" step="0.01" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" value={price} onChange={(e) => setPrice(e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Offer Price (৳)</label>
-                    <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} />
+                    <input type="number" step="0.01" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stock (Units)</label>
-                    <input type="number" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+                    <input type="number" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Weight (kg)</label>
-                    <input type="number" step="0.01" className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                    <input type="number" step="0.01" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" value={weight} onChange={(e) => setWeight(e.target.value)} />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</label>
-                    <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
-                      <option value="">Select Category</option>
-                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category <span className="normal-case text-slate-300">(type or pick)</span></label>
+                    <input
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                      placeholder="e.g. Grocery"
+                      list="cat-suggestions"
+                      value={categoryInput}
+                      onChange={(e) => { setCategoryInput(e.target.value); setSubcategoryInput(""); }}
+                      required
+                    />
+                    <datalist id="cat-suggestions">
+                      {categories.map((c) => <option key={c.id} value={c.name} />)}
+                    </datalist>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sub Category</label>
-                    <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={subCategoryId} onChange={(e) => setSubCategoryId(e.target.value)} required>
-                      <option value="">Select SubCat</option>
-                      {subCategories.filter((sc) => sc.categoryId === categoryId).map((sc) => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                    </select>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sub Category <span className="normal-case text-slate-300">(type or pick)</span></label>
+                    <input
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                      placeholder="e.g. Cooking Oil"
+                      list="subcat-suggestions"
+                      value={subcategoryInput}
+                      onChange={(e) => setSubcategoryInput(e.target.value)}
+                      required
+                    />
+                    <datalist id="subcat-suggestions">
+                      {subCategories
+                        .filter((sc) => {
+                          const matchedCat = categories.find(c => c.name.toLowerCase() === categoryInput.trim().toLowerCase());
+                          return matchedCat ? sc.categoryId === matchedCat.id : true;
+                        })
+                        .map((sc) => <option key={sc.id} value={sc.name} />)}
+                    </datalist>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Brand</label>
-                    <select className="w-full rounded-2xl border border-slate-200 px-5 py-4 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/10" value={brandId} onChange={(e) => setBrandId(e.target.value)}>
-                      <option value="">Select Brand (Optional)</option>
-                      {brands.filter(b => b.subcategoryId === subCategoryId).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Brand <span className="normal-case text-slate-300">(optional)</span></label>
+                    <input
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                      placeholder="Leave blank if no brand"
+                      list="brand-suggestions"
+                      value={brandInput}
+                      onChange={(e) => setBrandInput(e.target.value)}
+                    />
+                    <datalist id="brand-suggestions">
+                      {brands.map((b) => <option key={b.id} value={b.name} />)}
+                    </datalist>
                   </div>
                   {/* Images */}
-                  <div className="md:col-span-2 space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Product Images</label>
-                    <div className="grid grid-cols-5 gap-3">
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Product Images <span className="text-red-500">*</span>
+                      <span className="normal-case text-slate-300 ml-1">(at least 1 required)</span>
+                    </label>
+                    <div className={`grid grid-cols-5 gap-2 p-2 rounded-xl transition ${uploadedUrls.length === 0 ? "border-2 border-dashed border-red-200 bg-red-50/30" : "border border-slate-100"}`}>
                       {uploadedUrls.map((url, i) => (
-                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200">
+                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200">
                           <img src={url} alt="" className="h-full w-full object-cover" />
-                          <button type="button" onClick={() => removeUploadedImage(i)} className="absolute top-1 right-1 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]">✕</button>
+                          <button type="button" onClick={() => removeUploadedImage(i)} className="absolute top-1 right-1 h-4 w-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]">✕</button>
                         </div>
                       ))}
                       {uploadedUrls.length < 5 && (
-                        <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
-                          <span className="text-2xl text-slate-300 font-bold">+</span>
+                        <label className="aspect-square rounded-lg border border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
+                          <span className="text-xl text-slate-300 font-bold">+</span>
                           <span className="text-[8px] font-black text-slate-400">UPLOAD</span>
                           <input type="file" multiple className="hidden" onChange={handleFileUpload} accept="image/*" disabled={uploading} />
                         </label>
@@ -354,23 +394,23 @@ export default function AdminProductsPage() {
                     {uploading && <p className="text-[10px] font-bold text-orange-600 animate-pulse">Uploading images...</p>}
                   </div>
                   {/* Promotions */}
-                  <div className="md:col-span-2 flex gap-8 py-4 border-y border-slate-50">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" checked={isHotDeal} onChange={e => setIsHotDeal(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-orange-600" />
-                      <span className="text-sm font-black text-slate-900 uppercase">🔥 HOT DEAL</span>
+                  <div className="md:col-span-2 flex gap-6 py-3 border-y border-slate-100">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={isHotDeal} onChange={e => setIsHotDeal(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+                      <span className="text-xs font-bold text-slate-900 uppercase">🔥 HOT DEAL</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" checked={isSpecialOffer} onChange={e => setIsSpecialOffer(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-orange-600" />
-                      <span className="text-sm font-black text-slate-900 uppercase">🌟 SPECIAL OFFER</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={isSpecialOffer} onChange={e => setIsSpecialOffer(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-xs font-bold text-slate-900 uppercase">🌟 SPECIAL OFFER</span>
                     </label>
                   </div>
                 </div>
-                <button type="submit" disabled={uploading} className="w-full rounded-3xl bg-slate-900 py-5 font-black text-white shadow-2xl hover:bg-slate-800 transition-all disabled:opacity-50">
+                <button type="submit" disabled={uploading} className="w-full rounded-xl bg-slate-900 py-3 text-sm font-black text-white shadow-md hover:bg-slate-800 transition-all disabled:opacity-50">
                   ADD PRODUCT
                 </button>
               </form>
             ) : (
-              <div className="rounded-[40px] border-2 border-dashed border-slate-200 bg-slate-50 p-10 flex items-center justify-center text-center">
+              <div className="rounded-[24px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 flex items-center justify-center text-center">
                 <p className="font-bold text-slate-500">You do not have permission to create products.</p>
               </div>
             )}
@@ -446,57 +486,129 @@ export default function AdminProductsPage() {
             </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredProducts.map((p) => {
-              const img = firstProductImageUrl(p.images);
-              const isOutOfStock = p.quantity <= 0;
-              return (
-                <div key={p.id} className={`group overflow-hidden rounded-[32px] border bg-white shadow-sm hover:shadow-xl transition-all duration-300 ${p.isHidden ? "opacity-50 border-dashed border-slate-300" : isOutOfStock ? "border-red-200" : "border-slate-100"}`}>
-                  <div className="aspect-square bg-slate-50 relative overflow-hidden">
-                    {img ? (
-                      <img src={img} alt="" className="h-full w-full object-cover group-hover:scale-105 transition duration-500" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-300 font-bold">No Image</div>
-                    )}
-                    <div className="absolute top-3 left-3 flex flex-col gap-1">
-                      {isOutOfStock && <span className="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">OUT OF STOCK</span>}
-                      {p.isHidden && <span className="bg-slate-700 text-white text-[9px] font-black px-2 py-0.5 rounded-full">HIDDEN</span>}
-                      {p.isHotDeal && <span className="bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">🔥 HOT</span>}
-                      {p.isSpecialOffer && <span className="bg-blue-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">⭐ SPECIAL</span>}
-                    </div>
-                    <div className="absolute top-3 right-3">
-                      <span className={`text-white text-[9px] font-black px-2 py-0.5 rounded-full ${isOutOfStock ? "bg-red-600" : "bg-slate-900/80"}`}>{p.quantity} Units</span>
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <p className="text-[9px] font-black uppercase text-orange-600 tracking-widest mb-1">{p.category.name}</p>
-                    <h3 className="font-black text-slate-900 line-clamp-1 text-sm">{p.name}</h3>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-xl font-black text-slate-900">৳{p.price.toFixed(0)}</span>
-                      {p.offerPrice && <span className="text-xs text-slate-400 line-through font-bold">৳{p.offerPrice.toFixed(0)}</span>}
-                    </div>
+          <div className="rounded-[24px] border border-slate-200/60 bg-white p-1 shadow-xl shadow-slate-200/40 overflow-hidden mt-6">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-slate-50/50 sticky top-0 z-10 border-b border-slate-200">
+                  <tr>
+                    <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Thumbnail</th>
+                    <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Product Name & Category</th>
+                    <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Price</th>
+                    <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Stock</th>
+                    <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Status</th>
                     {canEdit && (
-                      <div className="mt-4 grid grid-cols-2 gap-2">
-                        <button onClick={() => openEdit(p)} className="col-span-2 bg-slate-900 text-white rounded-xl py-2 text-xs font-black hover:bg-slate-700 transition">✏️ EDIT</button>
-                        <button onClick={() => { setRestockProduct(p); setRestockAmount("0"); }} className="bg-emerald-600 text-white rounded-xl py-2 text-xs font-black hover:bg-emerald-700 transition">📦 RESTOCK</button>
-                        <button onClick={() => quickToggle(p.id, "isHidden", p.isHidden)} className={`rounded-xl py-2 text-xs font-black transition ${p.isHidden ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
-                          {p.isHidden ? "👁 SHOW" : "🙈 HIDE"}
-                        </button>
-                        <button onClick={() => quickToggle(p.id, "isHotDeal", p.isHotDeal)} className={`rounded-xl py-2 text-xs font-black transition ${p.isHotDeal ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600 hover:bg-orange-100"}`}>🔥 HOT</button>
-                        <button onClick={() => quickToggle(p.id, "isSpecialOffer", p.isSpecialOffer)} className={`rounded-xl py-2 text-xs font-black transition ${p.isSpecialOffer ? "bg-blue-500 text-white" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}>⭐ SPECIAL</button>
-                        <button onClick={() => deleteProduct(p.id)} className="col-span-2 bg-red-50 text-red-600 rounded-xl py-2 text-xs font-black hover:bg-red-100 transition">🗑 DELETE</button>
-                      </div>
+                      <th className="h-12 px-5 py-4 text-right align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Actions</th>
                     )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredProducts.map((p, i) => {
+                    const img = firstProductImageUrl(p.images);
+                    const isOutOfStock = p.quantity <= 0;
+                    return (
+                      <tr key={p.id} className="border-b border-slate-100 transition-all duration-200 hover:bg-slate-50/80 bg-white group">
+                        {/* THUMBNAIL */}
+                        <td className="p-4 align-middle w-[80px]">
+                          <div className="h-14 w-14 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
+                            {img ? (
+                              <img src={img} alt={p.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-[9px] text-slate-300 font-bold uppercase">No Img</span>
+                            )}
+                            {p.isHidden && (
+                              <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center">
+                                <span className="text-[8px] font-black text-white">HIDDEN</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* NAME & CATEGORY */}
+                        <td className="p-4 align-middle">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{p.category.name}</span>
+                            <span className="font-bold text-slate-900 text-sm tracking-tight">{p.name}</span>
+                          </div>
+                        </td>
+
+                        {/* PRICE */}
+                        <td className="p-4 align-middle">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 text-sm">৳{p.price.toFixed(2)}</span>
+                            {p.offerPrice && (
+                              <span className="text-[10px] text-slate-400 line-through font-bold">৳{p.offerPrice.toFixed(2)}</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* STOCK */}
+                        <td className="p-4 align-middle">
+                          <span className={`text-sm font-bold ${isOutOfStock ? 'text-red-600' : p.quantity < 10 ? 'text-amber-500' : 'text-emerald-600'}`}>
+                            {p.quantity} Units
+                          </span>
+                        </td>
+
+                        {/* STATUS */}
+                        <td className="p-4 align-middle">
+                          <div className="flex gap-1.5 flex-wrap">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ring-1 ring-inset ${isOutOfStock ? 'bg-red-50 text-red-700 ring-red-200' : 'bg-emerald-50 text-emerald-700 ring-emerald-200'}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                              {isOutOfStock ? 'Out of Stock' : 'Active'}
+                            </span>
+                            {p.isHotDeal && (
+                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ring-1 ring-inset bg-orange-50 text-orange-700 ring-orange-200">🔥 Hot</span>
+                            )}
+                            {p.isSpecialOffer && (
+                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ring-1 ring-inset bg-blue-50 text-blue-700 ring-blue-200">⭐ Special</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* ACTIONS */}
+                        {canEdit && (
+                          <td className="p-4 align-middle text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Edit */}
+                              <button onClick={() => openEdit(p)} title="Edit" className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition shadow-sm border border-slate-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                              </button>
+                              
+                              {/* Restock */}
+                              <button onClick={() => { setRestockProduct(p); setRestockAmount("0"); }} title="Restock" className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition shadow-sm border border-emerald-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                              </button>
+
+                              {/* Toggle Visibility */}
+                              <button onClick={() => quickToggle(p.id, "isHidden", p.isHidden)} title={p.isHidden ? "Show Product" : "Hide Product"} className={`h-8 w-8 rounded-lg flex items-center justify-center transition shadow-sm border ${p.isHidden ? "bg-amber-100 text-amber-600 border-amber-200 hover:bg-amber-600 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-200 hover:text-slate-700"}`}>
+                                {p.isHidden ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M6.71 6.71q.28-.27.57-.5L12 3l10 9-3 2.72"/><path d="M13.73 13.73a3 3 0 0 0-4.46-4.46"/><path d="M2.5 12a19.11 19.11 0 0 0 3 2.73l5.52 4.97 3-2.73"/></svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                )}
+                              </button>
+
+                              {/* Delete */}
+                              <button onClick={() => deleteProduct(p.id)} title="Delete" className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition shadow-sm border border-red-200 ml-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filteredProducts.length === 0 && (
+                <div className="py-24 text-center">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                   </div>
+                  <p className="text-slate-500 font-bold">No products found.</p>
                 </div>
-              );
-            })}
-          </div>
-          {filteredProducts.length === 0 && (
-            <div className="rounded-[32px] border-2 border-dashed border-slate-200 p-20 text-center">
-              <p className="text-slate-400 font-bold">No products found.</p>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* EDIT MODAL */}

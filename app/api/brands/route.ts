@@ -11,12 +11,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const { name, subcategoryId } = await req.json();
-  if (!name || !subcategoryId) return apiError("Name and SubCategory are required.", 400);
-  
+  // subcategoryId is now optional — brand can exist independently
+  if (!name || !name.trim()) return apiError("Brand name is required.", 400);
+
   const brand = await prisma.brand.create({
     data: {
-      name,
-      subcategoryId
+      name: name.trim(),
+      subcategoryId: subcategoryId || null
     }
   });
   return apiSuccess("Brand created successfully.", brand);

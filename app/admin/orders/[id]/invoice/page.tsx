@@ -120,7 +120,7 @@ export default function InvoicePage() {
       <div className="py-4 space-y-1 text-xs font-semibold">
          <p><span className="font-bold">Customer Name:</span> {order.user?.name || "Guest Customer"}</p>
          <p><span className="font-bold">Order Date:</span> {new Date(order.orderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-         <p><span className="font-bold">Shipping Address:</span> {order.street}, {order.city}, {order.country || "Bangladesh"}</p>
+         <p><span className="font-bold">Shipping Address:</span> {order.union ? `${order.street}, ${order.union}, ${order.upazila}, ${order.district}, ${order.division}` : `${order.street}, ${order.city || ""}, ${order.country || "Bangladesh"}`}</p>
          <p><span className="font-bold">Contact:</span> {order.phone}</p>
       </div>
 

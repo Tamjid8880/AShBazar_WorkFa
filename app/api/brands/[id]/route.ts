@@ -7,8 +7,11 @@ export async function PUT(req: Request, context: any) {
   try {
     const body = await req.json();
     const data: any = {};
-    if (body.name) data.name = body.name;
-    if (body.subcategoryId) data.subcategoryId = body.subcategoryId;
+    if (body.name !== undefined) data.name = body.name;
+    // Allow explicitly setting subcategoryId to null (clearing it)
+    if ("subcategoryId" in body) {
+      data.subcategoryId = body.subcategoryId || null;
+    }
     await prisma.brand.update({ where: { id }, data });
     return apiSuccess("Brand updated successfully.", null);
   } catch (err) {

@@ -1,5 +1,7 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
   const orders = await prisma.order.findMany({
@@ -10,11 +12,23 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { userID, items, totalPrice, shippingAddress, paymentMethod, couponCodeId, orderTotal, orderStatus, trackingUrl } = body;
+  // STRICT SECURITY GATE: Verify JWT
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || !(session.user as any).id) {
+    return apiError("Unauthorized. Please log in to place an order.", 401);
+  }
 
-  if (!userID || !Array.isArray(items) || !totalPrice || !shippingAddress || !paymentMethod || !orderTotal) {
-    return apiError("User ID, items, totalPrice, shippingAddress, paymentMethod, and orderTotal are required.", 400);
+  const userID = (session.user as any).id;
+  const body = await req.json();
+  const { items, totalPrice, shippingAddress, paymentMethod, couponCodeId, orderTotal, orderStatus, trackingUrl } = body;
+
+  if (!Array.isArray(items) || !totalPrice || !shippingAddress || !paymentMethod || !orderTotal) {
+    return apiError("Items, totalPrice, shippingAddress, paymentMethod, and orderTotal are required.", 400);
+  }
+
+  // Enforce profile completeness for address fields
+  if (!shippingAddress.name || !shippingAddress.phone || !shippingAddress.street || !shippingAddress.division || !shippingAddress.district || !shippingAddress.upazila || !shippingAddress.union) {
+    return apiError("Incomplete shipping profile. Please provide name, phone, and full address including division, district, upazila, and union.", 400);
   }
 
   // Check stock before creating order
@@ -43,7 +57,21 @@ export async function POST(req: Request) {
     }
   }
 
-  await prisma.order.create({
+  // Also update the user's profile with these fields if they are missing
+  await prisma.user.update({
+    where: { id: userID },
+    data: {
+      name: shippingAddress.name,
+      phone: shippingAddress.phone,
+      address: shippingAddress.street,
+      division: shippingAddress.division,
+      district: shippingAddress.district,
+      upazila: shippingAddress.upazila,
+      union: shippingAddress.union,
+    }
+  });
+
+  const order = await prisma.order.create({
     data: {
       userID,
       orderStatus: orderStatus ?? "pending",
@@ -51,10 +79,11 @@ export async function POST(req: Request) {
       totalPrice: Number(totalPrice),
       phone: shippingAddress.phone,
       street: shippingAddress.street,
-      city: shippingAddress.city,
-      state: shippingAddress.state,
-      postalCode: shippingAddress.postalCode,
-      country: shippingAddress.country,
+      division: shippingAddress.division,
+      district: shippingAddress.district,
+      upazila: shippingAddress.upazila,
+      union: shippingAddress.union,
+      country: shippingAddress.country || "Bangladesh",
       paymentMethod,
       couponCodeId,
       subtotal: orderTotal.subtotal,
@@ -103,5 +132,5 @@ export async function POST(req: Request) {
     });
   }
 
-  return apiSuccess("Order created successfully.", null);
+  return apiSuccess("Order created successfully.", { orderId: order.id });
 }

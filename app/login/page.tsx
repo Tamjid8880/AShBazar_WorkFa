@@ -8,34 +8,80 @@ import { FormEvent, useState } from "react";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const error = searchParams.get("error");
+  const callbackUrl = searchParams.get("callbackUrl") || "/shop";
+
+  async function requestOtp() {
+    if (!phone) {
+      setMessage("Please enter your phone number.");
+      return;
+    }
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/auth/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOtpSent(true);
+        setMessage("OTP sent to your phone (Check console for mock).");
+      } else {
+        setMessage(data.error || "Failed to send OTP.");
+      }
+    } catch (err) {
+      setMessage("Error requesting OTP.");
+    }
+    setLoading(false);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false
-    });
+    let res;
+
+    if (loginMethod === "email") {
+      res = await signIn("credentials", {
+        email,
+        password,
+        loginType: "email",
+        redirect: false,
+      });
+    } else {
+      res = await signIn("credentials", {
+        phone,
+        otp,
+        loginType: "phone",
+        redirect: false,
+      });
+    }
 
     if (res?.ok) {
       setMessage("Login successful. Redirecting...");
-      // Also store minimal info in localStorage for legacy compatibility
-      localStorage.setItem("auth_user", JSON.stringify({ email }));
+      if (loginMethod === "email") {
+        localStorage.setItem("auth_user", JSON.stringify({ email }));
+      } else {
+        localStorage.setItem("auth_user", JSON.stringify({ phone }));
+      }
       setTimeout(() => {
-        router.push("/shop");
+        router.push(callbackUrl);
         router.refresh();
       }, 500);
     } else {
-      setMessage("Invalid email or password.");
+      setMessage(res?.error || "Invalid credentials.");
     }
     setLoading(false);
   }
@@ -52,32 +98,90 @@ export default function LoginPage() {
           </div>
         )}
 
+        <div className="mt-6 flex rounded-xl bg-slate-100 p-1">
+          <button
+            onClick={() => setLoginMethod("email")}
+            className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${loginMethod === "email" ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            Email
+          </button>
+          <button
+            onClick={() => setLoginMethod("phone")}
+            className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all ${loginMethod === "phone" ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            Phone Number
+          </button>
+        </div>
+
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <input
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2"
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          {loginMethod === "email" ? (
+            <>
+              <input
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2 focus:border-orange-500 transition-all"
+                type="email"
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <input
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2 focus:border-orange-500 transition-all"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2 focus:border-orange-500 transition-all disabled:opacity-50"
+                  type="tel"
+                  placeholder="Phone Number (e.g. 017...)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={otpSent}
+                  required
+                />
+                {!otpSent && (
+                  <button
+                    type="button"
+                    onClick={requestOtp}
+                    disabled={loading || !phone}
+                    className="shrink-0 rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    Send OTP
+                  </button>
+                )}
+              </div>
+              {otpSent && (
+                <input
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none ring-orange-500/30 focus:ring-2 focus:border-orange-500 transition-all"
+                  type="text"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  required
+                />
+              )}
+            </>
+          )}
+
           <button 
             type="submit" 
-            disabled={loading}
-            className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            disabled={loading || (loginMethod === "phone" && !otpSent)}
+            className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 transition-all"
           >
             {loading ? "Signing in..." : "Login"}
           </button>
         </form>
-        <p className="mt-4 text-sm text-slate-600">{message}</p>
+        {message && (
+          <p className={`mt-4 text-sm font-medium ${message.includes("successful") || message.includes("OTP sent") ? "text-emerald-600" : "text-red-600"}`}>
+            {message}
+          </p>
+        )}
         <p className="mt-6 text-center text-sm text-slate-500">
           New here?{" "}
           <Link href="/register" className="font-semibold text-orange-600 hover:underline">
@@ -86,7 +190,7 @@ export default function LoginPage() {
         </p>
         <p className="mt-4 text-center">
           <Link href="/shop" className="text-sm text-slate-500 hover:text-orange-600">
-            ← Continue as guest
+            ← Back to Store
           </Link>
         </p>
       </section>

@@ -3,13 +3,13 @@
 import { FormEvent, useEffect, useState } from "react";
 import PermissionGuard from "@/components/permission-guard";
 
-type Brand = { id: string; name: string; subcategoryId: string; subCategory?: { name: string } };
+type Brand = { id: string; name: string; subcategoryId: string | null; subCategory?: { name: string } };
 
 export default function AdminBrandsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [subs, setSubs] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Add state
   const [name, setName] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
@@ -29,9 +29,7 @@ export default function AdminBrandsPage() {
         fetch("/api/subCategories").then((r) => r.json()),
         fetch("/api/brands").then((r) => r.json())
       ]);
-      const sList = s.data ?? [];
-      setSubs(sList);
-      if (sList.length > 0 && !subcategoryId) setSubcategoryId(sList[0].id);
+      setSubs(s.data ?? []);
       setBrands(b.data ?? []);
     } catch (err) {
       console.error(err);
@@ -46,13 +44,14 @@ export default function AdminBrandsPage() {
 
   async function add(e: FormEvent) {
     e.preventDefault();
-    if (!name || !subcategoryId) return;
+    if (!name.trim()) return;
     await fetch("/api/brands", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, subcategoryId })
+      body: JSON.stringify({ name: name.trim(), subcategoryId: subcategoryId || null })
     });
     setName("");
+    setSubcategoryId("");
     loadData();
   }
 
@@ -62,7 +61,7 @@ export default function AdminBrandsPage() {
     await fetch(`/api/brands/${editBrand.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName, subcategoryId: editSubCategory })
+      body: JSON.stringify({ name: editName, subcategoryId: editSubCategory || null })
     });
     setEditBrand(null);
     loadData();
@@ -95,18 +94,35 @@ export default function AdminBrandsPage() {
             <form onSubmit={add} className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-black text-slate-900">Add New Brand</h2>
               <div>
-                <label className="text-[10px] font-black uppercase text-slate-400">Brand Name</label>
-                <input className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm" placeholder="e.g. Pusti" value={name} onChange={(e) => setName(e.target.value)} required />
+                <label className="text-[10px] font-black uppercase text-slate-400">Brand Name <span className="text-red-500">*</span></label>
+                <input
+                  className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm"
+                  placeholder="e.g. Pusti"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase text-slate-400">Sub Category</label>
-                <select className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm" value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)} required>
+                <label className="text-[10px] font-black uppercase text-slate-400">
+                  Sub Category <span className="normal-case text-slate-300">(optional)</span>
+                </label>
+                <select
+                  className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm"
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                >
+                  <option value="">— No subcategory —</option>
                   {subs.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </div>
-              <button type="submit" disabled={!name || !subcategoryId} className="w-full rounded-xl bg-orange-600 px-5 py-3 text-sm font-black text-white hover:bg-orange-700 disabled:opacity-50">
+              <button
+                type="submit"
+                disabled={!name.trim()}
+                className="w-full rounded-xl bg-orange-600 px-5 py-3 text-sm font-black text-white hover:bg-orange-700 disabled:opacity-50"
+              >
                 ADD BRAND
               </button>
             </form>
@@ -116,9 +132,9 @@ export default function AdminBrandsPage() {
             <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm min-h-[400px]">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
                 <h2 className="text-lg font-black text-slate-900">All Brands</h2>
-                <input 
-                  type="text" 
-                  placeholder="Search brand name..." 
+                <input
+                  type="text"
+                  placeholder="Search brand name..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold w-full sm:max-w-xs focus:ring-2 focus:ring-slate-900 outline-none"
@@ -128,24 +144,52 @@ export default function AdminBrandsPage() {
               {loading ? (
                 <div className="py-20 text-center text-slate-400 font-bold animate-pulse">Loading brands...</div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {filteredBrands.map((b) => (
-                    <div key={b.id} className="group rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:bg-white hover:shadow-md hover:border-slate-200 flex flex-col justify-between">
-                      <div>
-                        <p className="font-black text-slate-900 text-lg">{b.name}</p>
-                        <p className="text-xs font-bold text-orange-600 bg-orange-100 inline-block px-2 py-0.5 rounded uppercase">{b.subCategory?.name || "Unknown"}</p>
+                <div className="rounded-[24px] border border-slate-200/60 bg-white p-1 shadow-xl shadow-slate-200/40 overflow-hidden">
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left text-sm border-collapse">
+                      <thead className="bg-slate-50/50 sticky top-0 z-10 border-b border-slate-200">
+                        <tr>
+                          <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Brand Name</th>
+                          <th className="h-12 px-5 py-4 text-left align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Sub Category</th>
+                          <th className="h-12 px-5 py-4 text-right align-middle font-black uppercase text-[10px] tracking-widest text-slate-400">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredBrands.map((b) => (
+                          <tr key={b.id} className="border-b border-slate-100 transition-all duration-200 hover:bg-slate-50/80 bg-white group">
+                            <td className="p-4 align-middle">
+                              <span className="font-bold text-slate-900 text-sm tracking-tight">{b.name}</span>
+                            </td>
+                            <td className="p-4 align-middle">
+                              {b.subCategory ? (
+                                <span className="text-[10px] font-bold text-orange-600 bg-orange-100 inline-block px-2 py-0.5 rounded uppercase">{b.subCategory.name}</span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 inline-block px-2 py-0.5 rounded uppercase">Independent</span>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button onClick={() => startEdit(b)} title="Edit" className="h-8 w-8 rounded-lg flex items-center justify-center bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white transition shadow-sm border border-slate-200">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                </button>
+                                <button onClick={() => deleteBrand(b.id)} title="Delete" className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition shadow-sm border border-red-200 ml-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {filteredBrands.length === 0 && (
+                      <div className="py-24 text-center">
+                        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        </div>
+                        <p className="text-slate-500 font-bold">No brands found.</p>
                       </div>
-                      <div className="mt-4 flex items-center gap-2">
-                        <button onClick={() => startEdit(b)} className="bg-slate-200 text-slate-700 text-[10px] font-black uppercase px-3 py-1.5 rounded-lg hover:bg-slate-300">Edit</button>
-                        <button onClick={() => deleteBrand(b.id)} className="bg-red-100 text-red-600 text-[10px] font-black uppercase px-3 py-1.5 rounded-lg hover:bg-red-200">Delete</button>
-                      </div>
-                    </div>
-                  ))}
-                  {filteredBrands.length === 0 && (
-                    <div className="col-span-2 py-10 text-center font-bold text-slate-400">
-                      No brands found.
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -160,11 +204,23 @@ export default function AdminBrandsPage() {
               <form onSubmit={saveEdit} className="space-y-4">
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-400">Brand Name</label>
-                  <input className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm" value={editName} onChange={(e) => setEditName(e.target.value)} required />
+                  <input
+                    className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase text-slate-400">Sub Category</label>
-                  <select className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm" value={editSubCategory} onChange={(e) => setEditSubCategory(e.target.value)} required>
+                  <label className="text-[10px] font-black uppercase text-slate-400">
+                    Sub Category <span className="normal-case text-slate-300">(optional)</span>
+                  </label>
+                  <select
+                    className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2 font-bold focus:ring-2 focus:ring-orange-500/20 outline-none text-sm"
+                    value={editSubCategory}
+                    onChange={(e) => setEditSubCategory(e.target.value)}
+                  >
+                    <option value="">— No subcategory —</option>
                     {subs.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}

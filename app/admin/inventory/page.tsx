@@ -107,21 +107,21 @@ export default function AdminInventoryPage({
       </div>
 
       {/* Filters */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search inventory..."
             defaultValue={searchParams.search}
-            className="pl-9"
+            className="pl-9 rounded-xl border-slate-200 focus:ring-orange-500/20 focus:border-orange-500"
           />
         </div>
 
         <Select defaultValue={searchParams.category}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 rounded-xl border-slate-200 font-medium text-slate-600">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl border-slate-100 shadow-xl">
             <SelectItem value="">All Categories</SelectItem>
             <SelectItem value="electronics">Electronics</SelectItem>
             <SelectItem value="clothing">Clothing</SelectItem>
@@ -132,10 +132,10 @@ export default function AdminInventoryPage({
         </Select>
 
         <Select defaultValue={searchParams.stockLevel}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 rounded-xl border-slate-200 font-medium text-slate-600">
             <SelectValue placeholder="Stock Level" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl border-slate-100 shadow-xl">
             <SelectItem value="">All Levels</SelectItem>
             <SelectItem value="in-stock">In Stock</SelectItem>
             <SelectItem value="low-stock">Low Stock</SelectItem>
@@ -144,19 +144,19 @@ export default function AdminInventoryPage({
           </SelectContent>
         </Select>
 
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50">
           <Filter className="mr-2 h-4 w-4" />
           More Filters
         </Button>
       </div>
 
       {/* Inventory Table */}
-      <div className="rounded-md border bg-white">
+      <div className="rounded-[24px] border border-slate-200/60 bg-white p-1 shadow-xl shadow-slate-200/40 overflow-hidden">
         <Suspense
           fallback={
-            <div className="p-8 text-center">
-              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
-              <p className="mt-2 text-sm text-muted-foreground">
+            <div className="p-16 text-center">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-slate-200 border-t-orange-500"></div>
+              <p className="mt-4 text-sm font-bold text-slate-400">
                 Loading inventory...
               </p>
             </div>

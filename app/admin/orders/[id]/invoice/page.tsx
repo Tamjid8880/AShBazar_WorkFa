@@ -25,7 +25,7 @@ export default function InvoicePage() {
           setOrder(null);
         }
         if (settingsData.success) {
-          setLogoUrl(settingsData.logoUrl);
+          setLogoUrl(settingsData.data?.logoUrl || "");
         }
       } catch (err) {
         setOrder(null);

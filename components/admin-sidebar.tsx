@@ -6,21 +6,24 @@ import { useEffect, useState } from "react";
 
 // Map sidebar items to required permissions
 const allLinks = [
-  { href: "/admin", label: "Dashboard", icon: "▣", perm: "view_dashboard" },
-  { href: "/admin/orders", label: "Orders", icon: "◎", perm: "view_orders" },
-  { href: "/admin/products", label: "Products", icon: "◇", perm: "view_products" },
-  { href: "/admin/categories", label: "Categories", icon: "▤", perm: "view_categories" },
-  { href: "/admin/brands", label: "Brands", icon: "◆", perm: "view_products" },
-  { href: "/admin/variants", label: "Variants", icon: "○", perm: "view_products" },
-  { href: "/admin/coupons", label: "Coupons", icon: "%", perm: "manage_coupons" },
-  { href: "/admin/posters", label: "Posters", icon: "▨", perm: "manage_posters" },
-  { href: "/admin/complaints", label: "Complaints", icon: "☏", perm: "manage_complaints" },
-  { href: "/admin/low-stock", label: "Low stock", icon: "!", perm: "view_products" },
-  { href: "/admin/shipping", label: "Shipping", icon: "✈", perm: "manage_shipping" },
-  { href: "/admin/users", label: "Users & Roles", icon: "👤", perm: "view_users" },
-  { href: "/admin/roles", label: "Permissions", icon: "🔑", perm: "assign_roles" },
-  { href: "/admin/audit-logs", label: "History", icon: "📋", perm: "view_audit_logs" },
-  { href: "/admin/settings", label: "Settings", icon: "⚙", perm: "manage_settings" }
+  { href: "/admin",               label: "Dashboard",       icon: "▣",  perm: "view_dashboard" },
+  { href: "/admin/orders",        label: "Orders",          icon: "◎",  perm: "view_orders" },
+  { href: "/admin/products",      label: "Products",        icon: "◇",  perm: "view_products" },
+  { href: "/admin/categories",    label: "Categories",      icon: "▤",  perm: "view_categories" },
+  { href: "/admin/brands",        label: "Brands",          icon: "◆",  perm: "view_products" },
+  { href: "/admin/variants",      label: "Variants",        icon: "○",  perm: "view_products" },
+  { href: "/admin/coupons",       label: "Coupons",         icon: "%",  perm: "manage_coupons" },
+  { href: "/admin/widgets",       label: "Widgets",         icon: "▨",  perm: "manage_posters" },
+  { href: "/admin/blogs",         label: "Blog Posts",      icon: "✍",  perm: "manage_posters" },
+  { href: "/admin/testimonials",  label: "Testimonials",    icon: "⭐",  perm: "manage_posters" },
+  { href: "/admin/payment-methods", label: "Payment Methods", icon: "💳", perm: "manage_settings" },
+  { href: "/admin/complaints",    label: "Complaints",      icon: "☏",  perm: "manage_complaints" },
+  { href: "/admin/low-stock",     label: "Low Stock",       icon: "!",  perm: "view_products" },
+  { href: "/admin/shipping",      label: "Shipping",        icon: "✈",  perm: "manage_shipping" },
+  { href: "/admin/users",         label: "Users & Roles",   icon: "👤", perm: "view_users" },
+  { href: "/admin/roles",         label: "Permissions",     icon: "🔑", perm: "assign_roles" },
+  { href: "/admin/audit-logs",    label: "History",         icon: "📋", perm: "view_audit_logs" },
+  { href: "/admin/settings",      label: "Settings",        icon: "⚙",  perm: "manage_settings" },
 ];
 
 export default function AdminSidebar() {

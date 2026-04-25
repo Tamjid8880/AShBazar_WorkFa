@@ -7,53 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum OrderStatus {
-  pending
-  accepted
-  packed
-  on_the_way
-  processing
-  shipped
-  delivered
-  cancelled
-}
-
-enum PaymentMethod {
-  cod
-  prepaid
-}
-
-enum DiscountType {
-  fixed
-  percentage
-}
-
-enum CouponStatus {
-  active
-  inactive
-}
-
 model Category {
   id            String        @id @default(cuid())
   name          String        @unique
   image         String
-  subCategories SubCategory[]
-  products      Product[]
-  coupons       CouponCode[]  @relation("CouponCategory")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  coupons       CouponCode[]  @relation("CouponCategory")
+  products      Product[]
+  subCategories SubCategory[]
 }
 
 model SubCategory {
-  id          String       @id @default(cuid())
-  name        String
-  categoryId  String
-  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  brands      Brand[]
-  products    Product[]
-  coupons     CouponCode[] @relation("CouponSubCategory")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id         String       @id @default(cuid())
+  name       String
+  categoryId String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  brands     Brand[]
+  coupons    CouponCode[] @relation("CouponSubCategory")
+  products   Product[]
+  category   Category     @relation(fields: [categoryId], references: [id])
 
   @@unique([name, categoryId])
 }
@@ -61,31 +35,31 @@ model SubCategory {
 model Brand {
   id            String       @id @default(cuid())
   name          String       @unique
-  subcategoryId String?
-  subCategory   SubCategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
-  products      Product[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  subcategoryId String?
+  subCategory   SubCategory? @relation(fields: [subcategoryId], references: [id])
+  products      Product[]
 }
 
 model VariantType {
   id        String    @id @default(cuid())
   name      String
   type      String
-  variants  Variant[]
-  products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  products  Product[]
+  variants  Variant[]
 }
 
 model Variant {
   id              String           @id @default(cuid())
   name            String
   variantTypeId   String
-  variantType     VariantType      @relation(fields: [variantTypeId], references: [id], onDelete: Restrict)
-  productVariants ProductVariant[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  productVariants ProductVariant[]
+  variantType     VariantType      @relation(fields: [variantTypeId], references: [id])
 }
 
 model Product {
@@ -95,26 +69,26 @@ model Product {
   quantity         Int
   price            Float
   offerPrice       Float?
-  weight           Float?           @default(0) // Weight in kg
   proCategoryId    String
   proSubCategoryId String
   proBrandId       String?
   proVariantTypeId String?
   proVariantId     String[]
   images           Json
-  isHotDeal        Boolean          @default(false)
-  isSpecialOffer   Boolean          @default(false)
-  isHidden         Boolean          @default(false)
-  category         Category         @relation(fields: [proCategoryId], references: [id], onDelete: Restrict)
-  subCategory      SubCategory      @relation(fields: [proSubCategoryId], references: [id], onDelete: Restrict)
-  brand            Brand?           @relation(fields: [proBrandId], references: [id], onDelete: SetNull)
-  variantType      VariantType?     @relation(fields: [proVariantTypeId], references: [id], onDelete: SetNull)
-  variants         ProductVariant[]
-  coupons          CouponCode[]     @relation("CouponProduct")
-  orderItems       OrderItem[]
-  reviews          Review[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+  weight           Float?           @default(0)
+  isHidden         Boolean          @default(false)
+  isHotDeal        Boolean          @default(false)
+  isSpecialOffer   Boolean          @default(false)
+  coupons          CouponCode[]     @relation("CouponProduct")
+  orderItems       OrderItem[]
+  brand            Brand?           @relation(fields: [proBrandId], references: [id])
+  category         Category         @relation(fields: [proCategoryId], references: [id])
+  subCategory      SubCategory      @relation(fields: [proSubCategoryId], references: [id])
+  variantType      VariantType?     @relation(fields: [proVariantTypeId], references: [id])
+  variants         ProductVariant[]
+  reviews          Review[]
 }
 
 model CouponCode {
@@ -128,12 +102,12 @@ model CouponCode {
   applicableCategoryId  String?
   applicableSubCatId    String?
   applicableProductId   String?
-  applicableCategory    Category?    @relation("CouponCategory", fields: [applicableCategoryId], references: [id], onDelete: SetNull)
-  applicableSubCategory SubCategory? @relation("CouponSubCategory", fields: [applicableSubCatId], references: [id], onDelete: SetNull)
-  applicableProduct     Product?     @relation("CouponProduct", fields: [applicableProductId], references: [id], onDelete: SetNull)
-  orders                Order[]
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
+  applicableCategory    Category?    @relation("CouponCategory", fields: [applicableCategoryId], references: [id])
+  applicableProduct     Product?     @relation("CouponProduct", fields: [applicableProductId], references: [id])
+  applicableSubCategory SubCategory? @relation("CouponSubCategory", fields: [applicableSubCatId], references: [id])
+  orders                Order[]
 }
 
 model Poster {
@@ -145,23 +119,23 @@ model Poster {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  phone     String?  @unique
-  address   String?
-  division  String?
-  district  String?
-  upazila   String?
-  union     String?
-  password  String?
-  roleId    String?
-  role      Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  orders    Order[]
-  reviews   Review[]
+  id         String      @id @default(cuid())
+  name       String
+  password   String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  address    String?
+  email      String?     @unique
+  phone      String?     @unique
+  roleId     String?
+  district   String?
+  division   String?
+  union      String?
+  upazila    String?
   complaints Complaint[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  orders     Order[]
+  reviews    Review[]
+  role       Role?       @relation(fields: [roleId], references: [id])
 }
 
 model OtpCode {
@@ -175,7 +149,7 @@ model OtpCode {
 
 model ProductVariant {
   id         String  @id @default(cuid())
-  productId  String 
+  productId  String
   variantId  String
   price      Float
   offerPrice Float?
@@ -185,23 +159,21 @@ model ProductVariant {
 }
 
 model DeliveryCharge {
-  id         String @id @default(cuid())
-  location   String
-  minWeight  Float  @default(0)
-  maxWeight  Float  @default(9999)
-  charge     Float
+  id        String @id @default(cuid())
+  location  String
+  minWeight Float  @default(0)
+  maxWeight Float  @default(9999)
+  charge    Float
 }
 
-// ── Shipping Zone System ──────────────────────────────────────────────────────
-
 model ShippingZone {
-  id        String           @id @default(cuid())
-  name      String           @unique
-  status    String           @default("active") // active | inactive
-  countries ShippingZoneCountry[]
+  id        String                @id @default(cuid())
+  name      String                @unique
+  status    String                @default("active")
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
   methods   ShippingMethod[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  countries ShippingZoneCountry[]
 }
 
 model ShippingZoneCountry {
@@ -214,16 +186,16 @@ model ShippingZoneCountry {
 }
 
 model ShippingMethod {
-  id              String       @id @default(cuid())
+  id              String         @id @default(cuid())
   name            String
   zoneId          String
-  status          String       @default("enabled") // enabled | disabled
-  calculationType String       // flat_rate | price_based | weight_based | api_based
-  zone            ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  status          String         @default("enabled")
+  calculationType String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   flatRate        FlatRate?
+  zone            ShippingZone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   rates           ShippingRate[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
 
   @@unique([name, zoneId])
 }
@@ -238,72 +210,72 @@ model FlatRate {
 model ShippingRate {
   id       String         @id @default(cuid())
   methodId String
-  minValue Float          // min price or min weight
+  minValue Float
   cost     Float
   method   ShippingMethod @relation(fields: [methodId], references: [id], onDelete: Cascade)
 }
 
 model Order {
-  id            String        @id @default(cuid())
-  userID        String
-  orderDate     DateTime      @default(now())
-  orderStatus   OrderStatus    @default(pending)
-  totalPrice    Float
-  stockDeducted Boolean       @default(false)
-  phone         String?
-  street        String?
-  city          String?
-  state         String?
-  postalCode    String?
-  country       String?
-  division      String?
-  district      String?
-  upazila       String?
-  union         String?
-  paymentMethod PaymentMethod
-  couponCodeId  String?
-  subtotal      Float?
-  discount      Float?
+  id             String               @id @default(cuid())
+  userID         String
+  orderDate      DateTime             @default(now())
+  orderStatus    OrderStatus          @default(pending)
+  totalPrice     Float
+  phone          String?
+  street         String?
+  city           String?
+  state          String?
+  postalCode     String?
+  country        String?
+  paymentMethod  PaymentMethod
+  couponCodeId   String?
+  subtotal       Float?
+  discount       Float?
+  total          Float?
+  trackingUrl    String?
   deliveryCharge Float?
-  total         Float?
-  trackingUrl   String?
-  adminNotes    String?       @db.Text
-  user          User          @relation(fields: [userID], references: [id], onDelete: Restrict)
-  couponCode    CouponCode?   @relation(fields: [couponCodeId], references: [id], onDelete: SetNull)
-  items         OrderItem[]
-  statusHistory OrderStatusHistory[]
+  stockDeducted  Boolean              @default(false)
+  adminNotes     String?
+  district       String?
+  division       String?
+  union          String?
+  upazila        String?
+  couponCode     CouponCode?          @relation(fields: [couponCodeId], references: [id])
+  user           User                 @relation(fields: [userID], references: [id])
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
 }
 
 model AuditLog {
   id          String   @id @default(cuid())
-  action      String   @db.Text
-  targetId    String?  // e.g. order Id
-  targetType  String?  // e.g. 'Order', 'Invoice'
-  performedBy String   // admin name/email
+  action      String
+  targetId    String?
+  targetType  String?
+  performedBy String
   createdAt   DateTime @default(now())
 }
 
 model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique // "customer", "admin", "super_admin"
-  users       User[]
+  id          String           @id @default(cuid())
+  name        String           @unique
+  createdAt   DateTime         @default(now())
   permissions RolePermission[]
-  createdAt   DateTime @default(now())
+  users       User[]
 }
 
 model Permission {
-  id          String   @id @default(cuid())
-  name        String   @unique // "manage_users", "manage_orders", etc
-  group       String   @default("general") // "products", "orders", "users", etc
-  roles       RolePermission[]
-  createdAt   DateTime @default(now())
+  id        String           @id @default(cuid())
+  name      String           @unique
+  createdAt DateTime         @default(now())
+  group     String           @default("general")
+  roles     RolePermission[]
 }
 
 model RolePermission {
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
@@ -317,7 +289,7 @@ model OrderItem {
   price       Float
   variant     String?
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product @relation(fields: [productID], references: [id], onDelete: Restrict)
+  product     Product @relation(fields: [productID], references: [id])
 }
 
 model Notification {
@@ -354,16 +326,90 @@ model Complaint {
 }
 
 model OrderStatusHistory {
-  id          String      @id @default(cuid())
-  orderId     String
-  status      OrderStatus
-  message     String?
-  dispatchId  String?
-  createdAt   DateTime    @default(now())
-  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id         String      @id @default(cuid())
+  orderId    String
+  status     OrderStatus
+  message    String?
+  dispatchId String?
+  createdAt  DateTime    @default(now())
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model StoreSetting {
-  id      String  @id @default("default")
-  logoUrl String?
+  id                String  @id @default("default")
+  logoUrl           String?
+  contactAddress    String?
+  contactEmail      String?
+  contactMapUrl     String?
+  contactPhone      String?
+  contactTitle      String?
+  footerDescription String?
+  footerLinks       Json?
+  socialLinks       Json?
+}
+
+model Widget {
+  id          String   @id @default(cuid())
+  section     String
+  title       String?
+  description String?
+  imageUrl    String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  review    String
+  rating    Int      @default(5)
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Blog {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PaymentOption {
+  id             String   @id @default(cuid())
+  name           String
+  accountDetails String?
+  instructions   String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum OrderStatus {
+  pending
+  processing
+  shipped
+  delivered
+  cancelled
+  accepted
+  packed
+  on_the_way
+}
+
+enum PaymentMethod {
+  cod
+  prepaid
+}
+
+enum DiscountType {
+  fixed
+  percentage
+}
+
+enum CouponStatus {
+  active
+  inactive
 }

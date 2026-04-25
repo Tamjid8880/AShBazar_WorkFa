@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const setting = await (prisma as any).storeSetting.findUnique({ where: { id: "default" } });
-    return NextResponse.json({ success: true, logoUrl: setting?.logoUrl || "" });
+    const setting = await prisma.storeSetting.findUnique({ where: { id: "default" } });
+    return NextResponse.json({ success: true, data: setting || {} });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 400 });
   }
@@ -12,13 +12,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { logoUrl } = await req.json();
-    await (prisma as any).storeSetting.upsert({
+    const data = await req.json();
+    const setting = await prisma.storeSetting.upsert({
       where: { id: "default" },
-      update: { logoUrl },
-      create: { id: "default", logoUrl },
+      update: data,
+      create: { id: "default", ...data },
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: setting });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 400 });
   }

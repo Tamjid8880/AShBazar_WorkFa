@@ -2,189 +2,351 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending:    "status-pending",
+  accepted:   "status-processing",
+  packed:     "status-processing",
+  processing: "status-processing",
+  shipped:    "status-shipped",
+  on_the_way: "status-shipped",
+  delivered:  "status-delivered",
+  cancelled:  "status-cancelled",
+};
+
+const ChevronRight = () => (
+  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status: authStatus } = useSession();
+  const [orders,     setOrders]     = useState<any[]>([]);
+  const [profile,    setProfile]    = useState<any>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [activeTab,  setActiveTab]  = useState<"orders" | "profile" | "complaint">("orders");
+  const [complaint,  setComplaint]  = useState({ subject: "", description: "" });
+  const [cStatus,    setCStatus]    = useState<"idle" | "loading" | "success">("idle");
 
   useEffect(() => {
-    const rawUser = localStorage.getItem("auth_user");
-    if (rawUser) {
-      const u = JSON.parse(rawUser);
-      setUser(u);
-      fetchOrders(u.id);
-    } else {
-      setLoading(false);
+    if (authStatus === "unauthenticated") {
+      window.location.href = "/login?callbackUrl=/profile";
+      return;
     }
-  }, []);
+    if (authStatus === "authenticated") {
+      loadData();
+    }
+  }, [authStatus]);
 
-  async function fetchOrders(userId: string) {
+  async function loadData() {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/orders/orderByUserId/${userId}`);
-      const data = await res.json();
-      setOrders(data.data || []);
+      const [profileRes, ordersRes] = await Promise.all([
+        fetch("/api/user/profile"),
+        fetch("/api/orders/my"),
+      ]);
+      if (profileRes.ok) {
+        const pd = await profileRes.json();
+        setProfile(pd.user);
+      }
+      if (ordersRes.ok) {
+        const od = await ordersRes.json();
+        setOrders(od.data || od.orders || []);
+      }
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }
 
-  if (loading) return <div className="p-20 text-center font-black animate-pulse text-slate-300">LOADING PROFILE...</div>;
+  async function submitComplaint(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session?.user) return;
+    setCStatus("loading");
+    const res = await fetch("/api/complaints", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        userId:      (session.user as any).id,
+        subject:     complaint.subject,
+        description: complaint.description,
+      }),
+    });
+    setCStatus(res.ok ? "success" : "idle");
+    if (res.ok) setComplaint({ subject: "", description: "" });
+  }
 
-  if (!user) {
+  if (authStatus === "loading" || loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
-         <h1 className="text-2xl font-black text-slate-900">Please Login</h1>
-         <Link href="/login" className="mt-4 bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold">Login</Link>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-[#4caf50] border-t-transparent mx-auto" />
+          <p className="text-sm font-medium text-gray-500">Loading your profile…</p>
+        </div>
       </div>
     );
   }
 
+  if (authStatus === "unauthenticated") return null;
+
+  const user = profile || session?.user;
+  const initials = (user?.name || "U").slice(0, 2).toUpperCase();
+
   return (
-    <div className="min-h-screen bg-[#f6f7fb]">
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-            {/* USER INFO */}
-            <div className="lg:col-span-1">
-                <div className="rounded-[40px] bg-white p-8 border border-slate-100 shadow-sm sticky top-24">
-                   <div className="h-20 w-20 rounded-full bg-slate-900 flex items-center justify-center text-3xl font-black text-white">
-                      {user.name[0].toUpperCase()}
-                   </div>
-                   <h2 className="mt-6 text-2xl font-black text-slate-900">{user.name}</h2>
-                   <p className="text-sm font-bold text-slate-400">{user.email}</p>
-                   <div className="mt-8 pt-8 border-t border-slate-100 space-y-4">
-                      <div>
-                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Phone</p>
-                         <p className="font-bold text-slate-700">{user.phone || "Not set"}</p>
-                      </div>
-                      <div>
-                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Address</p>
-                         <p className="font-bold text-slate-700 leading-relaxed">{user.address || "Not set"}</p>
-                      </div>
-                   </div>
-                </div>
+    <div className="min-h-screen bg-[#f5f7f5]">
+      {/* Header */}
+      <div className="bg-[#2e7d32] py-8">
+        <div className="container-main flex items-center justify-between">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-white">My Account</h1>
+            <nav className="breadcrumb mt-1">
+              <Link href="/">Home</Link>
+              <ChevronRight />
+              <span className="text-white/60">Profile</span>
+            </nav>
+          </div>
+          <Link href="/shop" className="rounded-md border border-white/30 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition">
+            Continue Shopping
+          </Link>
+        </div>
+      </div>
 
-                {/* COMPLAINT FORM */}
-                <div className="mt-8 rounded-[40px] bg-slate-900 p-8 text-white shadow-xl">
-                  <h3 className="text-xl font-bold">Need Help?</h3>
-                  <p className="text-slate-400 text-xs mt-1 mb-4">Report an issue or file a complaint.</p>
-                  <form 
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const form = e.target as any;
-                      const res = await fetch("/api/complaints", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          userId: user.id,
-                          subject: form.subject.value,
-                          description: form.description.value
-                        })
-                      });
-                      if (res.ok) {
-                        alert("Complaint submitted successfully! Ticket ID generated.");
-                        form.reset();
-                      }
-                    }}
-                    className="space-y-4"
+      <div className="container-main py-8">
+        <div className="grid gap-6 lg:grid-cols-4">
+          {/* ── Sidebar ──────────────────────────────────────── */}
+          <aside className="lg:col-span-1">
+            <div className="rounded-xl bg-white shadow-card border border-gray-100 overflow-hidden">
+              {/* Avatar */}
+              <div className="bg-[#2e7d32] p-6 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-xl font-black text-[#2e7d32]">
+                  {initials}
+                </div>
+                <h2 className="mt-3 font-heading font-bold text-white">{user?.name || "User"}</h2>
+                <p className="text-xs text-white/70">{user?.email || user?.phone || ""}</p>
+              </div>
+
+              {/* Nav tabs */}
+              <nav className="p-3 space-y-1">
+                {[
+                  { key: "orders",    label: "My Orders",        icon: "📦" },
+                  { key: "profile",   label: "Profile Settings", icon: "⚙️" },
+                  { key: "complaint", label: "File Complaint",   icon: "💬" },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
+                      activeTab === tab.key
+                        ? "bg-[#e8f5e9] text-[#2e7d32] font-semibold"
+                        : "text-gray-600 hover:bg-[#f5f7f5] hover:text-[#2e7d32]"
+                    }`}
                   >
-                    <input name="subject" placeholder="Subject" className="w-full bg-slate-800 border-none rounded-2xl px-5 py-3 text-sm" required />
-                    <textarea name="description" placeholder="Describe your issue..." className="w-full bg-slate-800 border-none rounded-2xl px-5 py-3 text-sm" rows={3} required />
-                    <button type="submit" className="w-full bg-orange-600 py-3 rounded-2xl font-black text-sm hover:bg-orange-700 transition">FILE COMPLAINT</button>
-                  </form>
+                    <span>{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 pt-1 mt-1">
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-red-400 hover:bg-red-50 hover:text-red-600 transition"
+                  >
+                    <span>🚪</span> Sign Out
+                  </button>
                 </div>
+              </nav>
             </div>
+          </aside>
 
-            {/* ORDERS & TIMELINE */}
-            <div className="lg:col-span-2 space-y-8">
-               <h1 className="text-3xl font-black text-slate-900">Your Orders</h1>
-               {orders.length === 0 ? (
-                  <div className="bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-200">
-                    <p className="text-slate-400 font-bold">No orders yet.</p>
+          {/* ── Main Content ──────────────────────────────────── */}
+          <main className="lg:col-span-3">
+
+            {/* ── ORDERS TAB ───────────────────────────────── */}
+            {activeTab === "orders" && (
+              <div>
+                <h2 className="mb-4 font-heading text-xl font-bold text-gray-900">My Orders</h2>
+                {orders.length === 0 ? (
+                  <div className="rounded-xl bg-white py-16 text-center shadow-card border border-gray-100">
+                    <div className="text-4xl mb-3">📭</div>
+                    <p className="font-bold text-gray-700">No orders yet</p>
+                    <p className="mt-1 text-sm text-gray-400">Your orders will appear here after checkout.</p>
+                    <Link href="/shop" className="mt-5 inline-flex items-center gap-1 rounded-md bg-[#ff6f00] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#e65100] transition">
+                      Start Shopping <ChevronRight />
+                    </Link>
                   </div>
-               ) : (
-                  orders.map(order => (
-                    <div key={order.id} className="rounded-[40px] bg-white border border-slate-100 shadow-sm overflow-hidden">
-                       <div className="bg-slate-50 p-6 flex justify-between items-center border-b border-slate-100">
-                          <div>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order ID</p>
-                             <p className="font-black text-slate-900 text-lg">#{order.id.slice(-8).toUpperCase()}</p>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ordered On</p>
-                             <p className="font-bold text-slate-600 italic text-sm">{new Date(order.orderDate).toLocaleDateString()}</p>
-                          </div>
-                       </div>
-                       
-                       <div className="p-8">
-                          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-8">Tracking Timeline</h3>
-                          <div className="space-y-0 relative">
-                             {/* VERTICAL LINE */}
-                             <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-slate-100"></div>
-
-                             {order.statusHistory?.map((h: any, i: number) => {
-                                const isLatest = i === 0;
-                                return (
-                                    <div key={h.id} className="relative flex gap-10 pb-10 last:pb-0">
-                                        {/* DOT */}
-                                        <div className={`z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-4 border-white shadow-sm ৳{isLatest ? 'bg-emerald-500 scale-110' : 'bg-slate-200'}`}>
-                                            {isLatest ? (
-                                                <span className="text-white text-xs">✓</span>
-                                            ) : (
-                                                <div className="h-2 w-2 rounded-full bg-slate-400"></div>
-                                            )}
-                                        </div>
-                                        {/* CONTENT */}
-                                        <div className="flex-1 pt-1">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <div>
-                                                    <p className={`font-black text-sm uppercase tracking-tight ৳{isLatest ? 'text-emerald-600' : 'text-slate-500'}`}>{h.message}</p>
-                                                    {h.dispatchId && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Dispatch ID: {h.dispatchId}</p>}
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <p className="text-[10px] font-black text-slate-900 uppercase">{new Date(h.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(h.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                             })}
+                ) : (
+                  <div className="space-y-4">
+                    {orders.map(order => {
+                      const latestStatus = order.statusHistory?.[0]?.status || order.orderStatus;
+                      const statusCls = ORDER_STATUS_COLORS[latestStatus] || "bg-gray-100 text-gray-600";
+                      return (
+                        <div key={order.id} className="rounded-xl bg-white shadow-card border border-gray-100 overflow-hidden">
+                          {/* Order header */}
+                          <div className="flex items-center justify-between bg-[#f5f7f5] px-5 py-3 border-b border-gray-100">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Order</p>
+                              <p className="font-bold text-gray-800">#{order.id.slice(-8).toUpperCase()}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${statusCls}`}>
+                                {latestStatus?.replace(/_/g, " ")}
+                              </span>
+                              <span className="text-xs font-medium text-gray-500">
+                                {new Date(order.orderDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </span>
+                            </div>
                           </div>
 
-                          <div className="mt-12 pt-8 border-t border-slate-50 flex justify-between items-center">
-                             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Items: {order.items?.length}</p>
-                             <div className="flex items-center gap-6">
-                                <p className="text-2xl font-black text-slate-900">৳{order.total?.toFixed(2)}</p>
-                                <button 
-                                  onClick={() => {
-                                    const currentCart = JSON.parse(localStorage.getItem("cart") || "[]");
-                                    const newItems = order.items.map((it: any) => ({
-                                      lineId: Math.random().toString(36).slice(2),
-                                      productId: it.productID,
-                                      name: it.productName,
-                                      price: Number(it.price),
-                                      quantity: it.quantity,
-                                      variantLabel: it.variant,
-                                      image: "" // Image link lost in order history, but cart usually handles it or fetches it
-                                    }));
-                                    localStorage.setItem("cart", JSON.stringify([...currentCart, ...newItems]));
-                                    alert("Items added to cart!");
-                                    window.location.href = "/cart";
-                                  }}
-                                  className="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-black hover:bg-slate-800 transition"
-                                >
-                                  RE-ORDER
-                                </button>
-                             </div>
+                          {/* Items preview */}
+                          <div className="px-5 py-4">
+                            <div className="space-y-2">
+                              {order.items?.slice(0, 3).map((it: any) => (
+                                <div key={it.id} className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">{it.productName}</span>
+                                  <span className="text-gray-400">×{it.quantity} — ৳{Number(it.price).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              {order.items?.length > 3 && (
+                                <p className="text-xs text-gray-400">+{order.items.length - 3} more items</p>
+                              )}
+                            </div>
                           </div>
-                       </div>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3">
+                            <div>
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Total</p>
+                              <p className="font-heading font-bold text-[#2e7d32]">৳{Number(order.total || order.totalPrice).toFixed(2)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+                                  const newItems = order.items.map((it: any) => ({
+                                    lineId: `${it.productID}::default-reorder`,
+                                    productId: it.productID,
+                                    name: it.productName,
+                                    price: Number(it.price),
+                                    quantity: it.quantity,
+                                    variantLabel: it.variant || undefined,
+                                    imageUrl: "",
+                                    maxStock: 999,
+                                  }));
+                                  localStorage.setItem("cart", JSON.stringify([...cart, ...newItems]));
+                                  window.location.href = "/cart";
+                                }}
+                                className="rounded-md border border-[#4caf50] px-4 py-1.5 text-xs font-bold text-[#4caf50] hover:bg-[#e8f5e9] transition"
+                              >
+                                Re-order
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Tracking Action */}
+                          <div className="border-t border-gray-100 px-5 py-3 bg-[#f5f7f5]">
+                            <Link href={`/profile/orders/${order.id}/track`} className="flex w-full items-center justify-center gap-2 rounded-md bg-white border border-[#4caf50] py-2 text-sm font-bold text-[#2e7d32] hover:bg-[#e8f5e9] transition">
+                              Track Order
+                              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <polyline points="9 18 15 12 9 6"/>
+                              </svg>
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── PROFILE TAB ──────────────────────────────── */}
+            {activeTab === "profile" && (
+              <div>
+                <h2 className="mb-4 font-heading text-xl font-bold text-gray-900">Profile Settings</h2>
+                <div className="rounded-xl bg-white p-6 shadow-card border border-gray-100">
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {[
+                      { label: "Full Name",   val: user?.name    || "—" },
+                      { label: "Email",       val: user?.email   || "—" },
+                      { label: "Phone",       val: user?.phone   || "Not set" },
+                      { label: "Address",     val: user?.address || "Not set" },
+                      { label: "Division",    val: user?.division  || "Not set" },
+                      { label: "District",    val: user?.district  || "Not set" },
+                      { label: "Upazila",     val: user?.upazila   || "Not set" },
+                      { label: "Union",       val: user?.union     || "Not set" },
+                    ].map(f => (
+                      <div key={f.label} className="rounded-lg bg-[#f5f7f5] p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{f.label}</p>
+                        <p className="mt-1 text-sm font-semibold text-gray-800">{f.val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-5 text-xs text-gray-400">
+                    To update your profile details, please contact support or update them at checkout.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── COMPLAINT TAB ────────────────────────────── */}
+            {activeTab === "complaint" && (
+              <div>
+                <h2 className="mb-4 font-heading text-xl font-bold text-gray-900">File a Complaint</h2>
+                <div className="rounded-xl bg-white p-6 shadow-card border border-gray-100">
+                  <p className="mb-6 text-sm text-gray-500">
+                    Have an issue? Submit a complaint and our support team will respond within 24 hours.
+                  </p>
+
+                  {cStatus === "success" ? (
+                    <div className="rounded-lg bg-[#e8f5e9] border border-[#a5d6a7] p-6 text-center">
+                      <div className="text-3xl mb-2">✅</div>
+                      <h3 className="font-bold text-[#2e7d32]">Complaint Submitted!</h3>
+                      <p className="mt-1 text-sm text-gray-600">Your ticket has been created. We&apos;ll get back to you soon.</p>
+                      <button
+                        onClick={() => { setCStatus("idle"); setComplaint({ subject: "", description: "" }); }}
+                        className="mt-4 rounded-md bg-[#4caf50] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2e7d32] transition"
+                      >
+                        Submit Another
+                      </button>
                     </div>
-                  ))
-               )}
-            </div>
+                  ) : (
+                    <form onSubmit={submitComplaint} className="space-y-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-gray-600">Subject <span className="text-red-500">*</span></label>
+                        <input
+                          required
+                          value={complaint.subject}
+                          onChange={e => setComplaint(c => ({ ...c, subject: e.target.value }))}
+                          className="input"
+                          placeholder="Brief subject of your complaint"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-gray-600">Description <span className="text-red-500">*</span></label>
+                        <textarea
+                          required
+                          value={complaint.description}
+                          onChange={e => setComplaint(c => ({ ...c, description: e.target.value }))}
+                          rows={5}
+                          className="input resize-none"
+                          placeholder="Please describe your issue in detail…"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={cStatus === "loading"}
+                        className="rounded-md bg-[#ff6f00] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#e65100] transition disabled:opacity-60"
+                      >
+                        {cStatus === "loading" ? "Submitting…" : "File Complaint"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </main>
         </div>
       </div>
     </div>

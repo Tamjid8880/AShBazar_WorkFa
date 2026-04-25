@@ -1,66 +1,65 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import type { CartLine } from "@/lib/cart-types";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CartLine } from "@/lib/cart-types";
 
-function readCart(): CartLine[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem("cart") ?? "[]");
-    return Array.isArray(raw) ? raw : [];
-  } catch {
-    return [];
-  }
+function readCart():  CartLine[] {
+  try { const raw = JSON.parse(localStorage.getItem("cart") ?? "[]"); return Array.isArray(raw) ? raw : []; } catch { return []; }
 }
-
 function writeCart(lines: CartLine[]) {
   localStorage.setItem("cart", JSON.stringify(lines));
 }
 
+const TrashIcon = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+  </svg>
+);
+const ShoppingBagIcon = () => (
+  <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1" viewBox="0 0 24 24">
+    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+  </svg>
+);
+const ChevronRight = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+
 export default function CartPage() {
-  const [items, setItems] = useState<CartLine[]>([]);
-  const [user, setUser] = useState<any>(null);
-  const [coupon, setCoupon] = useState("");
-  const [couponInfo, setCouponInfo] = useState<any>(null);
+  const [items,       setItems]       = useState<CartLine[]>([]);
+  const [coupon,      setCoupon]      = useState("");
+  const [couponInfo,  setCouponInfo]  = useState<any>(null);
   const [couponError, setCouponError] = useState("");
-  const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const refresh = useCallback(() => setItems(readCart()), []);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  useEffect(() => {
-    refresh();
-    const rawUser = localStorage.getItem("auth_user");
-    if (rawUser) setUser(JSON.parse(rawUser));
-    
-    // Simulate fetching delivery charge logic or set a default
-    setDeliveryCharge(50); // Default charge
-  }, [refresh]);
-
-  const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
+  const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
 
   const discount = useMemo(() => {
     if (!couponInfo) return 0;
     if (subtotal < couponInfo.minimumPurchaseAmount) return 0;
-    if (couponInfo.discountType === "percentage") {
-      return (subtotal * couponInfo.discountAmount) / 100;
-    }
-    return couponInfo.discountAmount;
+    return couponInfo.discountType === "percentage"
+      ? (subtotal * couponInfo.discountAmount) / 100
+      : couponInfo.discountAmount;
   }, [subtotal, couponInfo]);
 
-  const total = subtotal - discount + deliveryCharge;
+  // Delivery charge shown on cart is estimate only — actual calculated on checkout
+  const estimatedDelivery = items.length > 0 ? 50 : 0;
+  const total = subtotal - discount + estimatedDelivery;
 
   async function applyCoupon() {
-    setCouponError("");
-    setCouponInfo(null);
     if (!coupon) return;
-    
-    // Fetch coupon from API (assuming it exists or I'll create it)
-    const res = await fetch(`/api/coupons/validate?code=${coupon}`);
+    setCouponLoading(true); setCouponError(""); setCouponInfo(null);
+    const res  = await fetch(`/api/coupons/validate?code=${coupon}`);
     const data = await res.json();
+    setCouponLoading(false);
     if (data.success) {
       if (subtotal < data.data.minimumPurchaseAmount) {
-        setCouponError(`Min purchase $${data.data.minimumPurchaseAmount} required.`);
+        setCouponError(`Minimum purchase ৳${data.data.minimumPurchaseAmount} required.`);
       } else {
         setCouponInfo(data.data);
       }
@@ -70,137 +69,200 @@ export default function CartPage() {
   }
 
   function updateQty(lineId: string, delta: number) {
-    const next = readCart()
-      .map((line) => {
-        if (line.lineId !== lineId) return line;
-        const maxLimit = line.maxStock ?? Infinity;
-        const nextQty = line.quantity + delta;
-        if (nextQty > maxLimit) {
-            alert(`Sorry, only ৳{maxLimit} items available in stock.`);
-            return line;
-        }
-        return { ...line, quantity: Math.max(1, nextQty) };
-      });
-    writeCart(next);
-    refresh();
+    const next = readCart().map(line => {
+      if (line.lineId !== lineId) return line;
+      const max = line.maxStock ?? Infinity;
+      const nq  = line.quantity + delta;
+      if (nq > max) { alert(`Only ${max} items available.`); return line; }
+      return { ...line, quantity: Math.max(1, nq) };
+    });
+    writeCart(next); refresh();
   }
 
   function removeLine(lineId: string) {
-    writeCart(readCart().filter((l) => l.lineId !== lineId));
-    refresh();
+    writeCart(readCart().filter(l => l.lineId !== lineId)); refresh();
+  }
+
+  function proceedToCheckout() {
+    sessionStorage.setItem("checkout_summary", JSON.stringify({
+      subtotal, discount, deliveryCharge: estimatedDelivery, total,
+      couponCode: couponInfo?.couponCode, couponId: couponInfo?.id,
+    }));
+    window.location.href = "/checkout";
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7fb]">
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <h1 className="text-3xl font-black text-slate-900 mb-8">Shopping Bag</h1>
-        
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            {items.length === 0 ? (
-              <div className="bg-white rounded-[32px] p-20 text-center border-2 border-dashed border-slate-200">
-                <p className="text-slate-400 font-bold text-xl">Your bag is empty.</p>
-                <Link href="/shop" className="mt-4 inline-block text-orange-600 font-black underline">Start Shopping</Link>
+    <div className="min-h-screen bg-[#f5f7f5]">
+      {/* Top bar */}
+      <div className="bg-[#2e7d32] py-6">
+        <div className="container-main flex items-center justify-between">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-white">Shopping Bag</h1>
+            <nav className="breadcrumb mt-1">
+              <Link href="/">Home</Link>
+              <ChevronRight />
+              <span className="text-white/60">Cart</span>
+            </nav>
+          </div>
+          <Link href="/shop" className="rounded-md border border-white/30 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition">
+            Continue Shopping
+          </Link>
+        </div>
+      </div>
+
+      <div className="container-main py-8">
+        {items.length === 0 ? (
+          /* ── Empty state ──────────────────────────────────── */
+          <div className="flex flex-col items-center justify-center rounded-xl bg-white py-24 text-center shadow-card border border-gray-100">
+            <div className="mb-4 text-gray-200">
+              <ShoppingBagIcon />
+            </div>
+            <h2 className="font-heading text-xl font-bold text-gray-800">Your bag is empty</h2>
+            <p className="mt-2 text-sm text-gray-500">Looks like you haven&apos;t added any items yet.</p>
+            <Link
+              href="/shop"
+              className="mt-6 inline-flex items-center gap-2 rounded-md bg-[#ff6f00] px-6 py-3 text-sm font-bold text-white shadow-orange hover:bg-[#e65100] transition"
+            >
+              Start Shopping <ChevronRight />
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-8 lg:grid-cols-3">
+            {/* ── Cart Items ──────────────────────────────────── */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Header row */}
+              <div className="hidden md:grid grid-cols-12 gap-4 rounded-lg bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 shadow-card border border-gray-100">
+                <div className="col-span-6">Product</div>
+                <div className="col-span-2 text-center">Price</div>
+                <div className="col-span-2 text-center">Qty</div>
+                <div className="col-span-2 text-right">Total</div>
               </div>
-            ) : (
-              items.map((item) => (
-                <article key={item.lineId} className="flex gap-6 rounded-[28px] bg-white p-6 shadow-sm border border-slate-100">
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-slate-50">
-                    {item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-900 text-lg leading-tight">{item.name}</h3>
-                    {item.variantLabel && <p className="text-xs font-bold text-orange-600 mt-1 uppercase">{item.variantLabel}</p>}
-                    <div className="mt-4 flex items-center gap-4">
-                      <div className="flex items-center rounded-xl border border-slate-100 bg-slate-50">
-                        <button className="px-3 py-1 text-lg font-bold text-slate-400" onClick={() => updateQty(item.lineId, -1)}>−</button>
-                        <span className="min-w-[2rem] text-center font-bold text-slate-900 text-sm">{item.quantity}</span>
-                        <button className="px-3 py-1 text-lg font-bold text-slate-400" onClick={() => updateQty(item.lineId, 1)}>+</button>
-                      </div>
-                      <button className="text-xs font-bold text-slate-300 hover:text-red-500 transition" onClick={() => removeLine(item.lineId)}>REMOVE</button>
+
+              {items.map(item => (
+                <article key={item.lineId} className="grid grid-cols-12 gap-4 items-center rounded-xl bg-white p-4 shadow-card border border-gray-100">
+                  {/* Image + name */}
+                  <div className="col-span-12 md:col-span-6 flex items-center gap-4">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[#f5f7f5] border border-gray-100">
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                        : <div className="flex h-full items-center justify-center text-gray-300 text-xs">No img</div>
+                      }
+                    </div>
+                    <div className="min-w-0">
+                      <Link href={`/products/${item.productId}`} className="font-semibold text-gray-800 text-sm hover:text-[#2e7d32] transition line-clamp-2">
+                        {item.name}
+                      </Link>
+                      {item.variantLabel && (
+                        <p className="mt-0.5 text-xs text-[#4caf50] font-medium">{item.variantLabel}</p>
+                      )}
+                      <button
+                        onClick={() => removeLine(item.lineId)}
+                        className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition"
+                      >
+                        <TrashIcon /> Remove
+                      </button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-slate-900 text-xl">৳{(item.price * item.quantity).toFixed(2)}</p>
-                    <p className="text-[10px] font-bold text-slate-400 mt-1">৳{item.price.toFixed(2)} / unit</p>
+
+                  {/* Unit price */}
+                  <div className="col-span-4 md:col-span-2 text-sm font-bold text-gray-700 md:text-center">
+                    <span className="md:hidden text-[10px] text-gray-400 block">Price</span>
+                    ৳{item.price.toFixed(2)}
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="col-span-4 md:col-span-2 flex justify-center">
+                    <div className="qty-control">
+                      <button className="qty-btn" onClick={() => updateQty(item.lineId, -1)}>−</button>
+                      <span className="qty-value">{item.quantity}</span>
+                      <button className="qty-btn" onClick={() => updateQty(item.lineId, 1)}>+</button>
+                    </div>
+                  </div>
+
+                  {/* Line total */}
+                  <div className="col-span-4 md:col-span-2 text-sm font-bold text-[#2e7d32] md:text-right">
+                    <span className="md:hidden text-[10px] text-gray-400 block">Total</span>
+                    ৳{(item.price * item.quantity).toFixed(2)}
                   </div>
                 </article>
-              ))
-            )}
-          </div>
+              ))}
 
-          {/* SUMMARY */}
-          <div className="space-y-6">
-            <div className="rounded-[32px] bg-white p-8 shadow-xl border border-slate-100">
-              <h2 className="text-xl font-black text-slate-900 mb-6">Order Summary</h2>
-              
-              <div className="space-y-4 text-sm font-bold">
-                <div className="flex justify-between text-slate-500">
-                  <span>Subtotal</span>
-                  <span className="text-slate-900">৳{subtotal.toFixed(2)}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>Discount</span>
-                    <span>-৳{discount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-slate-500">
-                  <span>Delivery Fee</span>
-                  <span className="text-slate-900">৳{deliveryCharge.toFixed(2)}</span>
-                </div>
-                <div className="pt-4 border-t border-slate-100 flex justify-between text-xl font-black">
-                  <span>Total</span>
-                  <span className="text-orange-600">৳{total.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Coupon */}
-              <div className="mt-8 space-y-3">
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Promo Code</p>
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-orange-500/20"
-                    placeholder="ENTER CODE"
-                    value={coupon}
-                    onChange={(e) => setCoupon(e.target.value)}
-                  />
-                  <button onClick={applyCoupon} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-black text-white hover:bg-slate-800 transition">APPLY</button>
-                </div>
-                {couponError && <p className="text-[10px] text-red-500 font-bold">{couponError}</p>}
-                {couponInfo && <p className="text-[10px] text-emerald-600 font-bold">Code applied!</p>}
-              </div>
-
-              {/* Shipping Info */}
-              {user && (
-                <div className="mt-8 pt-6 border-t border-slate-100 space-y-2">
-                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Shipping To</p>
-                  <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                  <p className="text-xs text-slate-500 line-clamp-2">{user.address || "No address saved. Add in profile."}</p>
-                </div>
-              )}
-
+              {/* Clear Cart */}
               <button
-                disabled={items.length === 0}
-                onClick={() => {
-                    // Save summary to sessionStorage for checkout
-                    sessionStorage.setItem("checkout_summary", JSON.stringify({ 
-                      subtotal, 
-                      discount, 
-                      deliveryCharge, 
-                      total, 
-                      couponCode: couponInfo?.couponCode, 
-                      couponId: couponInfo?.id 
-                    }));
-                    window.location.href = "/checkout";
-                }}
-                className="w-full mt-8 rounded-2xl bg-orange-600 py-4 font-black text-white shadow-xl shadow-orange-500/30 hover:bg-orange-700 hover:scale-[1.02] transition-all disabled:opacity-40"
+                onClick={() => { writeCart([]); refresh(); }}
+                className="text-xs font-semibold text-gray-400 hover:text-red-500 transition flex items-center gap-1"
               >
-                Proceed to Checkout
+                <TrashIcon /> Clear Cart
               </button>
             </div>
+
+            {/* ── Order Summary ───────────────────────────────── */}
+            <div className="space-y-5 self-start">
+              {/* Coupon */}
+              <div className="rounded-xl bg-white p-5 shadow-card border border-gray-100">
+                <h3 className="mb-3 font-heading text-sm font-bold text-gray-800 uppercase tracking-wide">Promo Code</h3>
+                <div className="flex gap-2">
+                  <input
+                    value={coupon}
+                    onChange={e => setCoupon(e.target.value.toUpperCase())}
+                    placeholder="ENTER CODE"
+                    className="input flex-1 font-mono text-sm tracking-wider"
+                    onKeyDown={e => e.key === "Enter" && applyCoupon()}
+                  />
+                  <button
+                    onClick={applyCoupon}
+                    disabled={couponLoading}
+                    className="rounded-md bg-[#2e7d32] px-4 text-sm font-bold text-white hover:bg-[#1b5e20] transition disabled:opacity-60"
+                  >
+                    {couponLoading ? "…" : "Apply"}
+                  </button>
+                </div>
+                {couponError && <p className="mt-1.5 text-xs font-medium text-red-500">{couponError}</p>}
+                {couponInfo  && <p className="mt-1.5 text-xs font-medium text-[#4caf50]">✓ Coupon applied! -{couponInfo.discountAmount}{couponInfo.discountType === "percentage" ? "%" : "৳"} off</p>}
+              </div>
+
+              {/* Summary card */}
+              <div className="rounded-xl bg-white p-5 shadow-card border border-gray-100">
+                <h3 className="mb-4 font-heading text-base font-bold text-gray-900">Order Summary</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between text-gray-500">
+                    <span>Subtotal ({items.length} items)</span>
+                    <span className="font-semibold text-gray-800">৳{subtotal.toFixed(2)}</span>
+                  </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between text-[#4caf50]">
+                      <span>Discount</span>
+                      <span className="font-semibold">-৳{discount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-gray-500">
+                    <span>Est. Delivery</span>
+                    <span className="font-semibold text-gray-800">৳{estimatedDelivery.toFixed(2)}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400">* Final delivery calculated at checkout based on address</p>
+                </div>
+                <div className="mt-4 border-t border-gray-100 pt-4 flex justify-between">
+                  <span className="font-heading font-bold text-gray-900">Total</span>
+                  <span className="font-heading text-xl font-bold text-[#2e7d32]">৳{total.toFixed(2)}</span>
+                </div>
+
+                <button
+                  disabled={items.length === 0}
+                  onClick={proceedToCheckout}
+                  className="mt-5 w-full rounded-md bg-[#ff6f00] py-3 text-sm font-bold text-white shadow-orange hover:bg-[#e65100] transition disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  Proceed to Checkout <ChevronRight />
+                </button>
+                <Link
+                  href="/shop"
+                  className="mt-3 block text-center text-sm font-medium text-gray-500 hover:text-[#4caf50] transition"
+                >
+                  ← Continue Shopping
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

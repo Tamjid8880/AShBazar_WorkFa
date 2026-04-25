@@ -1,239 +1,434 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getStoreNavData } from "@/lib/store-nav";
-import { firstProductImageUrl } from "@/lib/product-images";
 import StoreHeader from "@/components/store-header";
+import StoreFooter from "@/components/store-footer";
+import EcoProductCard from "@/components/eco-product-card";
+import HeroCarousel from "@/components/hero-carousel";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "AshBazar — Fresh Grocery Store | Best Prices Delivered",
+  description: "Shop fresh vegetables, fruits, meat, dairy and more at AshBazar.",
+};
+
+const ChevronRight = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+
+const TruckIcon  = () => <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
+const ShieldIcon = () => <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const HsetIcon   = () => <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></svg>;
+const ReturnIcon = () => <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>;
+
 export default async function HomePage() {
-  const { categories, brands, logoUrl } = await getStoreNavData();
-  const posters = await prisma.poster.findMany({ orderBy: { createdAt: "desc" } });
+  const { categories, brands, settings } = await getStoreNavData();
+
+  // Fetch dynamic widgets for sections
+  const widgets = await prisma.widget.findMany();
+  const heroPosters = widgets.filter(w => w.section === "hero_carousel");
+  const hotDealsBanner = widgets.find(w => w.section === "hot_deals");
+  const specialOfferBanner = widgets.find(w => w.section === "special_offer");
+  const secondaryBanners = widgets.filter(w => w.section === "secondary_banner");
+  const whyChooseUsWidget = widgets.find(w => w.section === "why_choose_us");
+
+  const testimonials = await prisma.testimonial.findMany({ take: 3, orderBy: { createdAt: "desc" } });
+
   const hotDeals = await prisma.product.findMany({
-    where: { isHotDeal: true },
+    where:   { isHotDeal: true, isHidden: false },
     include: { category: true, variants: true },
-    take: 4
+    take:    8,
   });
+
   const specialOffers = await prisma.product.findMany({
-    where: { isSpecialOffer: true },
+    where:   { isSpecialOffer: true, isHidden: false },
     include: { category: true, variants: true },
-    take: 4
+    take:    8,
   });
-  const products = await prisma.product.findMany({
-    take: 8,
-    where: { isHotDeal: false, isSpecialOffer: false },
+
+  const featuredProducts = await prisma.product.findMany({
+    take:    12,
+    where:   { isHidden: false },
     orderBy: { createdAt: "desc" },
-    include: { category: true, brand: true, variants: true },
+    include: { category: true, variants: true },
   });
+
+  const latestProducts = await prisma.product.findMany({
+    take:    4,
+    where:   { isHotDeal: false, isSpecialOffer: false, isHidden: false },
+    orderBy: { createdAt: "desc" },
+    include: { category: true, variants: true },
+  });
+
+  const promoBanner1 = secondaryBanners[0] || null;
+  const promoBanner2 = secondaryBanners[1] || null;
 
   return (
-    <div className="min-h-screen bg-[#f6f7fb]">
-      <StoreHeader categories={categories} brands={brands} logoUrl={logoUrl} />
+    <div className="min-h-screen bg-[#f5f7f5]">
+      <StoreHeader categories={categories} brands={brands} settings={settings} />
 
-      {/* HERO CAROUSEL */}
-      <section className="mx-auto max-w-7xl px-4 py-6">
-        <div className="relative h-[300px] md:h-[450px] w-full overflow-hidden rounded-[32px] shadow-xl">
-          {posters.length > 0 ? (
-            <div className="flex h-full animate-fade-in">
-              <img src={posters[0].imageUrl} alt={posters[0].posterName} className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent flex items-center p-12">
-                <div className="max-w-md text-white">
-                  <h2 className="text-4xl md:text-6xl font-black">{posters[0].posterName}</h2>
-                  <Link href="/shop" className="mt-6 inline-block bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition">
-                    Shop Now
-                  </Link>
+      {/* ── HERO CAROUSEL ──────────────────────────────────── */}
+      <HeroCarousel posters={heroPosters} />
+
+      {/* ── FEATURE BADGES ─────────────────────────────────── */}
+      <section className="bg-white border-b border-gray-100">
+        <div className="container-main py-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              { icon: <TruckIcon />,  title: "Free Shipping",  sub: "Orders over ৳500" },
+              { icon: <ShieldIcon />, title: "100% Secure",    sub: "Safe payment" },
+              { icon: <HsetIcon />,   title: "24/7 Support",   sub: "Dedicated support" },
+              { icon: <ReturnIcon />, title: "Easy Returns",   sub: "10-day return policy" },
+            ].map(f => (
+              <div key={f.title} className="flex items-center gap-3 rounded-lg p-3">
+                <div className="shrink-0 rounded-full bg-[#e8f5e9] p-2.5 text-[#2e7d32]">{f.icon}</div>
+                <div>
+                  <p className="text-sm font-bold text-gray-800">{f.title}</p>
+                  <p className="text-xs text-gray-500">{f.sub}</p>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center bg-slate-200 text-slate-400">
-              No posters added. Add some in Admin Dashboard.
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* CATEGORY LOGOS */}
-      <section className="mx-auto max-w-7xl px-4 py-10">
-        <h2 className="text-xl font-bold text-slate-900 mb-6 px-2">Browse by Category</h2>
-        <div className="flex flex-wrap justify-center gap-6 md:gap-10">
-          {categories.map((cat) => (
-            <Link key={cat.id} href={`/shop?category=${cat.id}`} className="group flex flex-col items-center gap-3">
-              <div className="h-20 w-20 md:h-24 md:w-24 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center p-4 group-hover:border-orange-200 group-hover:shadow-md transition">
-                {cat.image ? (
-                  <img src={cat.image} alt={cat.name} className="h-full w-full object-contain" />
-                ) : (
-                  <span className="text-2xl font-bold text-slate-300">{cat.name[0]}</span>
-                )}
-              </div>
-              <span className="text-sm font-semibold text-slate-700 group-hover:text-orange-600">{cat.name}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* HOT DEALS */}
-      {hotDeals.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-8">
-          <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 text-white opacity-20 text-9xl font-black">HOT</div>
-            <h2 className="text-3xl md:text-5xl font-black text-white mb-8 relative z-10">🔥 Hot Deals!</h2>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
-              {hotDeals.map(p => {
-                const variants = (p as any).variants || [];
-                const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
-                const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : p.quantity <= 0;
-                const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (p.quantity > 0 && p.quantity <= 5);
-
-                return (
-                 <Link key={p.id} href={`/products/${p.id}`} className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 hover:bg-white transition flex flex-col group">
-                   <div className="aspect-square rounded-2xl bg-white overflow-hidden relative">
-                     <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
-                     {isOutOfStock && (
-                       <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-                           <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
-                       </div>
-                     )}
-                     {!isOutOfStock && isLowStock && (
-                       <div className="absolute top-3 right-3 z-10">
-                           <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200 shadow-sm">Low Stock</span>
-                       </div>
-                     )}
-                   </div>
-                  <h3 className="mt-4 font-bold text-white group-hover:text-slate-900 line-clamp-1">{p.name}</h3>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-white group-hover:text-orange-600">৳{(p.offerPrice ?? p.price).toFixed(2)}</span>
-                    {p.offerPrice != null && p.offerPrice < p.price && (
-                      <span className="text-xs font-bold text-white/80 group-hover:text-red-500">{Math.round(((p.price - p.offerPrice) / p.price) * 100)}% OFF</span>
+      {/* ── CATEGORIES ─────────────────────────────────────── */}
+      {categories.length > 0 && (
+        <section className="section-py bg-[#f5f7f5]">
+          <div className="container-main">
+            <div className="mb-8 text-center">
+              <p className="section-label mb-1">CATEGORIES</p>
+              <h2 className="section-title">Shop By Categories</h2>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 md:gap-4">
+              {categories.map(cat => (
+                <Link
+                  key={cat.id}
+                  href={`/shop?category=${cat.id}`}
+                  className="category-pill group min-w-[80px] hover:bg-white rounded-lg transition"
+                >
+                  <div className="category-pill-icon group-hover:border-[#4caf50] group-hover:shadow-sm">
+                    {cat.image ? (
+                      <img src={cat.image} alt={cat.name} className="h-10 w-10 object-contain" />
+                    ) : (
+                      <span className="text-xl font-bold text-[#4caf50]">{cat.name[0]}</span>
                     )}
                   </div>
+                  <span className="text-xs font-semibold text-gray-700 group-hover:text-[#2e7d32] transition">
+                    {cat.name}
+                  </span>
                 </Link>
-              );
-              })}
+              ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* SPECIAL OFFERS */}
-      {specialOffers.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-8 px-2">🌟 Special Offers</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {specialOffers.map(p => {
-              const variants = (p as any).variants || [];
-              const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
-              const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : p.quantity <= 0;
-              const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (p.quantity > 0 && p.quantity <= 5);
+      {/* ── HOT DEALS SECTION ──────────────────────────────── */}
+      {hotDeals.length > 0 && (
+        <section className="section-py bg-white">
+          <div className="container-main">
 
-              return (
-               <Link key={p.id} href={`/products/${p.id}`} className="flex flex-col gap-4 bg-white rounded-3xl p-5 border border-slate-100 hover:shadow-xl transition group">
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-50 relative">
-                  <img src={firstProductImageUrl(p.images)} className="h-full w-full object-cover" />
-                  {isOutOfStock && (
-                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-                        <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
-                    </div>
-                  )}
-                  {!isOutOfStock && isLowStock && (
-                    <div className="absolute top-3 right-3 z-10">
-                        <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200">Low Stock</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest">{p.category.name}</p>
-                  <h3 className="font-bold text-slate-900 line-clamp-1">{p.name}</h3>
-                  <div className="mt-2 flex items-baseline gap-2">
-                     <span className="text-xl font-black text-slate-900">৳{(p.offerPrice ?? p.price).toFixed(2)}</span>
-                     {p.offerPrice != null && p.offerPrice < p.price && (
-                       <>
-                         <span className="text-sm text-slate-400 line-through">৳{p.price.toFixed(2)}</span>
-                         <span className="text-xs font-black text-red-500">{Math.round(((p.price - p.offerPrice) / p.price) * 100)}% OFF</span>
-                       </>
-                     )}
-                  </div>
-                  <div className="mt-4 bg-orange-100 text-orange-700 rounded-full py-1 text-center text-[10px] font-black uppercase tracking-widest">
-                    SAVE BIG NOW
-                  </div>
-                </div>
+            {/* Optional promo image strip above hot deals */}
+            {hotDealsBanner && hotDealsBanner.imageUrl && (
+              <div className="mb-6 overflow-hidden rounded-2xl shadow-sm">
+                <img
+                  src={hotDealsBanner.imageUrl}
+                  alt={hotDealsBanner.title || "Hot Deals"}
+                  className="h-44 w-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="section-label mb-1">
+                  {hotDealsBanner?.meta && (hotDealsBanner.meta as any).discount ? `UP TO ${(hotDealsBanner.meta as any).discount}% OFF` : "EXCLUSIVE"}
+                </p>
+                <h2 className="section-title">{hotDealsBanner?.title || "Hot Deals"}</h2>
+                {hotDealsBanner?.description && <p className="text-sm text-gray-500 mt-1">{hotDealsBanner.description}</p>}
+              </div>
+              <Link href="/shop?isHotDeal=1" className="flex items-center gap-1 text-sm font-semibold text-[#ff6f00] hover:text-[#e65100] transition">
+                View All <ChevronRight />
               </Link>
-              );
-            })}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {hotDeals.map(p => (
+                <EcoProductCard
+                  key={p.id} id={p.id} name={p.name}
+                  price={p.price} offerPrice={p.offerPrice}
+                  categoryName={p.category.name} images={p.images}
+                  quantity={p.quantity} variants={p.variants} isHotDeal={true}
+                />
+              ))}
+            </div>
           </div>
         </section>
       )}
 
-      {/* FEATURED PRODUCTS */}
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">Featured Products</h2>
-          <Link href="/shop" className="text-sm font-bold text-orange-600 hover:underline">View All</Link>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => {
-            const img = firstProductImageUrl(product.images);
-            const price = product.offerPrice ?? product.price;
-            const variants = (product as any).variants || [];
-            const totalVariantStock = variants.reduce((acc: number, pv: any) => acc + pv.stock, 0);
-            const isOutOfStock = variants.length > 0 ? totalVariantStock <= 0 : product.quantity <= 0;
-            const isLowStock = variants.length > 0 ? (totalVariantStock > 0 && totalVariantStock <= 5) : (product.quantity > 0 && product.quantity <= 5);
+      {/* ── PROMO BANNERS (using posters from DB) ──────────── */}
+      <section className="py-10 bg-[#f5f7f5]">
+        <div className="container-main">
+          <div className="grid gap-6 md:grid-cols-2">
 
-            return (
+            {/* Left Banner */}
+            <div
+              className="group relative overflow-hidden rounded-2xl min-h-[200px] flex flex-col justify-between p-8 cursor-pointer"
+              style={{
+                background: promoBanner1
+                  ? `linear-gradient(135deg, rgba(232,245,233,0.96) 40%, rgba(200,230,200,0.7) 100%)`
+                  : "linear-gradient(135deg, #e8f5e9 40%, #c8e6c9 100%)",
+                backgroundImage: promoBanner1
+                  ? `linear-gradient(135deg, rgba(232,245,233,0.96) 40%, rgba(200,230,200,0.7) 100%), url(${promoBanner1.imageUrl})`
+                  : undefined,
+                backgroundSize:  "cover",
+                backgroundPosition: "center right",
+              }}
+            >
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-[#4caf50]">
+                  {promoBanner1?.meta && (promoBanner1.meta as any).discount ? `ENJOY ${(promoBanner1.meta as any).discount}% OFF` : "SPECIAL OFFER"}
+                </p>
+                <h3 className="mt-2 font-heading text-xl font-bold text-gray-900 leading-snug">
+                  {promoBanner1?.title || "Free Fruits Are Collected From Gardens"}
+                </h3>
+                {promoBanner1?.description && <p className="mt-2 text-sm text-gray-600 max-w-[200px] line-clamp-3">{promoBanner1.description}</p>}
+              </div>
               <Link
-                key={product.id}
-                href={`/products/${product.id}`}
-                className="group bg-white rounded-3xl border border-slate-100 p-4 shadow-sm hover:shadow-xl hover:border-orange-100 transition-all duration-300"
+                href="/shop?isSpecialOffer=1"
+                className="mt-4 inline-flex items-center rounded-md bg-[#ff6f00] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#e65100] transition w-fit"
               >
-                <div className="aspect-square rounded-2xl bg-slate-50 overflow-hidden relative">
-                  {img ? (
-                    <img src={img} alt={product.name} className="h-full w-full object-cover group-hover:scale-105 transition duration-500" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-300">No image</div>
-                  )}
-                  {isOutOfStock && (
-                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-                        <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Sold Out</span>
-                    </div>
-                  )}
-                  {!isOutOfStock && isLowStock && (
-                    <div className="absolute top-3 right-3 z-10">
-                        <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter border border-orange-200">Low Stock</span>
-                    </div>
-                  )}
-                  {product.offerPrice && product.offerPrice < product.price && (
-                    <div className="absolute top-3 left-3 flex gap-1">
-                      <span className="bg-orange-600 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter">Sale</span>
-                      <span className="bg-red-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter shadow-sm">{Math.round(((product.price - product.offerPrice) / product.price) * 100)}% OFF</span>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4">
-                  <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">{product.category.name}</p>
-                  <h3 className="mt-1 font-bold text-slate-900 line-clamp-1 group-hover:text-orange-600">{product.name}</h3>
-                  <div className="mt-3 flex items-center justify-between">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-black text-slate-900">৳{price.toFixed(2)}</span>
-                      {product.offerPrice && product.offerPrice < product.price && (
-                        <span className="text-xs text-slate-400 line-through">৳{product.price.toFixed(2)}</span>
-                      )}
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-white group-hover:bg-orange-600 transition">+</div>
-                  </div>
-                </div>
+                Shop Now
               </Link>
-            );
-          })}
+
+              {/* Real image on right */}
+              {promoBanner1 && promoBanner1.imageUrl && (
+                <img
+                  src={promoBanner1.imageUrl}
+                  alt={promoBanner1.title || "Banner"}
+                  className="absolute right-0 bottom-0 h-full w-1/2 object-cover object-left rounded-r-2xl opacity-80 group-hover:scale-105 transition duration-300"
+                />
+              )}
+            </div>
+
+            {/* Right Banner */}
+            <div
+              className="group relative overflow-hidden rounded-2xl min-h-[200px] flex flex-col justify-between p-8 cursor-pointer"
+              style={{
+                background: "linear-gradient(90deg, #8dc63f 0%, #3a753a 100%)",
+              }}
+            >
+              {promoBanner2 && promoBanner2.imageUrl && (
+                <img
+                  src={promoBanner2.imageUrl}
+                  alt={promoBanner2.title || "Banner"}
+                  className="absolute inset-0 h-full w-full object-cover rounded-2xl opacity-40 group-hover:opacity-50 transition duration-300"
+                />
+              )}
+              <div className="relative z-10">
+                <p className="text-xs font-black uppercase tracking-widest text-[#a5d6a7]">
+                  {promoBanner2?.meta && (promoBanner2.meta as any).discount ? `ENJOY ${(promoBanner2.meta as any).discount}% OFF` : "SPECIAL OFFER"}
+                </p>
+                <h3 className="mt-2 font-heading text-xl font-bold text-white leading-snug">
+                  {promoBanner2?.title || "All Free Vegetables"}
+                </h3>
+                <p className="mt-1 text-xs text-white/70 leading-relaxed max-w-xs line-clamp-3">
+                  {promoBanner2?.description || "There Is No One Who Loves Pain Itself, Who Seeks After It And Wants To Have It, Simply Because It Is Pain"}
+                </p>
+              </div>
+              <Link
+                href="/shop"
+                className="relative z-10 mt-4 inline-flex items-center rounded-md bg-[#ff6f00] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#e65100] transition w-fit"
+              >
+                Shop Now
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="mt-20 border-t border-slate-200 bg-white py-12">
-        <div className="mx-auto max-w-7xl px-4 text-center">
-          <p className="text-sm font-bold text-slate-900">AshBazar &copy; 2026</p>
-          <p className="mt-1 text-xs text-slate-500">Premium E-commerce Experience</p>
+      {/* ── SPECIAL OFFERS ─────────────────────────────────── */}
+      {specialOffers.length > 0 && (
+        <section className="section-py bg-[#f5f7f5]">
+          <div className="container-main">
+
+            {/* Optional image banner above special offers */}
+            {specialOfferBanner && specialOfferBanner.imageUrl && (
+              <div className="mb-6 overflow-hidden rounded-2xl shadow-sm">
+                <img
+                  src={specialOfferBanner.imageUrl}
+                  alt={specialOfferBanner.title || "Special Offer"}
+                  className="h-44 w-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="section-label mb-1">
+                  {specialOfferBanner?.meta && (specialOfferBanner.meta as any).discount ? `ENJOY ${(specialOfferBanner.meta as any).discount}% OFF` : "PROMOTION"}
+                </p>
+                <h2 className="section-title">{specialOfferBanner?.title || "Special Offers"}</h2>
+                {specialOfferBanner?.description && <p className="text-sm text-gray-500 mt-1">{specialOfferBanner.description}</p>}
+              </div>
+              <Link href="/shop?isSpecialOffer=1" className="flex items-center gap-1 text-sm font-semibold text-[#ff6f00] hover:text-[#e65100] transition">
+                View All <ChevronRight />
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {specialOffers.map(p => (
+                <EcoProductCard
+                  key={p.id} id={p.id} name={p.name}
+                  price={p.price} offerPrice={p.offerPrice}
+                  categoryName={p.category.name} images={p.images}
+                  quantity={p.quantity} variants={p.variants} isSpecialOffer={true}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── FEATURED / FREE SELLING ────────────────────────── */}
+      <section className="section-py bg-white">
+        <div className="container-main">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p className="section-label mb-1">FREE SELLING</p>
+              <h2 className="section-title">Featured Products</h2>
+            </div>
+            <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-[#ff6f00] hover:text-[#e65100] transition">
+              View All <ChevronRight />
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {featuredProducts.map(p => (
+              <EcoProductCard
+                key={p.id} id={p.id} name={p.name}
+                price={p.price} offerPrice={p.offerPrice}
+                categoryName={p.category.name} images={p.images}
+                quantity={p.quantity} variants={p.variants}
+              />
+            ))}
+          </div>
         </div>
-      </footer>
+      </section>
+
+      {/* ── WHY CHOOSE US ──────────────────────────────────── */}
+      <section
+        className="section-py"
+        style={{ background: "linear-gradient(135deg, #1a2f1a 0%, #1c3a1c 40%, #2d5a2d 100%)" }}
+      >
+        <div className="container-main grid items-center gap-10 md:grid-cols-2">
+          <div className="text-white">
+            <p className="section-label mb-2 text-[#a5d6a7]">WHY CHOOSE US</p>
+            <h2 className="font-heading text-3xl font-bold leading-snug">
+              {whyChooseUsWidget?.title || "We Provide the Freshest &\nBest Quality Groceries"}
+            </h2>
+            <p className="mt-4 leading-relaxed text-white/70 text-sm">
+              {whyChooseUsWidget?.description || "We source directly from farmers and trusted suppliers to bring you the freshest produce at the best prices."}
+            </p>
+            <ul className="mt-6 space-y-3">
+              {["100% Fresh & Natural Products", "Direct from Farmers", "Fast & Safe Delivery", "Certified Organic Range"].map(item => (
+                <li key={item} className="flex items-center gap-3 text-sm text-white/80">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4caf50]">
+                    <svg width="10" height="10" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <Link href="/shop" className="mt-8 inline-flex items-center gap-2 rounded-md bg-[#ff6f00] px-6 py-3 text-sm font-semibold text-white hover:bg-[#e65100] transition">
+              Shop Now <ChevronRight />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { num: whyChooseUsWidget?.meta && (whyChooseUsWidget.meta as any).totalProducts ? (whyChooseUsWidget.meta as any).totalProducts : "500+", lbl: "Products Available" },
+              { num: whyChooseUsWidget?.meta && (whyChooseUsWidget.meta as any).totalCategories ? (whyChooseUsWidget.meta as any).totalCategories : "50+",  lbl: "Product Categories" },
+              { num: whyChooseUsWidget?.meta && (whyChooseUsWidget.meta as any).happyCustomers ? (whyChooseUsWidget.meta as any).happyCustomers : "10K+", lbl: "Happy Customers" },
+              { num: whyChooseUsWidget?.meta && (whyChooseUsWidget.meta as any).satisfactionRate ? `${(whyChooseUsWidget.meta as any).satisfactionRate}%` : "99%",  lbl: "Satisfaction Rate" },
+            ].map(s => (
+              <div key={s.lbl} className="rounded-xl bg-white/10 p-6 text-center backdrop-blur-sm">
+                <p className="font-heading text-3xl font-bold text-white">{s.num}</p>
+                <p className="mt-1 text-xs font-medium text-white/60">{s.lbl}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ───────────────────────────────────── */}
+      {testimonials.length > 0 && (
+        <section className="section-py bg-[#f5f7f5]">
+          <div className="container-main">
+            <div className="mb-8 text-center">
+              <p className="section-label mb-1">TESTIMONIALS</p>
+              <h2 className="section-title">What Our Customers Say</h2>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {testimonials.map(t => (
+                <div key={t.id} className="rounded-xl bg-white p-6 shadow-card">
+                  <div className="mb-3 flex">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <svg key={i} width="14" height="14" fill={i < t.rating ? "#ff6f00" : "#e0e0e0"} viewBox="0 0 24 24">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed italic line-clamp-4">"{t.review}"</p>
+                  <div className="mt-4 flex items-center gap-3 border-t border-gray-100 pt-4">
+                    {t.imageUrl ? (
+                      <img src={t.imageUrl} alt={t.name} className="h-9 w-9 rounded-full object-cover" />
+                    ) : (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8f5e9] text-sm font-bold text-[#2e7d32]">{t.name[0]}</div>
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">{t.name}</p>
+                      <p className="text-xs text-gray-400">Verified Customer</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── LATEST PRODUCTS ────────────────────────────────── */}
+      {latestProducts.length > 0 && (
+        <section className="section-py bg-white">
+          <div className="container-main">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="section-label mb-1">JUST IN</p>
+                <h2 className="section-title">Latest Products</h2>
+              </div>
+              <Link href="/shop?sort=newest" className="flex items-center gap-1 text-sm font-semibold text-[#ff6f00] hover:text-[#e65100] transition">
+                View All <ChevronRight />
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+              {latestProducts.map(p => (
+                <EcoProductCard
+                  key={p.id} id={p.id} name={p.name}
+                  price={p.price} offerPrice={p.offerPrice}
+                  categoryName={p.category.name} images={p.images}
+                  quantity={p.quantity} variants={p.variants}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <StoreFooter settings={settings} />
     </div>
   );
 }
